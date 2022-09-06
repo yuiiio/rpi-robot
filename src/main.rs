@@ -54,11 +54,19 @@ fn main() {
     let mut prediff :[f64; 3] = [0.0, 0.0, 0.0];
     let mut preprediff :[f64; 3] = [0.0, 0.0, 0.0];
 
-    const KP :f64 = 0.7;
-    const KI :f64 = 0.6;
-    const KD :f64 = 0.3;
+    const KP :f64 = 0.35;
+    const KI :f64 = 0.3;
+    const KD :f64 = 0.15;
 
+    let mut count: u8 = 0;
     loop {
+        /*
+        if count > 10 {
+            break;
+        }
+        count = count + 1;
+        */
+
         if now.elapsed().unwrap().as_secs_f64() >= 2.0 {
             break;
         }
@@ -98,7 +106,7 @@ fn main() {
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
         let cmd = generate_cmd(&motor, &mut cmd_str);
 
-        println!("start motor(byte): {:?}", cmd);
+        //println!("start motor(byte): {:?}", cmd);
 
         /*
            match port.write(cmd)
@@ -111,9 +119,9 @@ fn main() {
            */
 
         // duration
-        diff = [motor1 - diff[0], motor2 - diff[1], motor3 - diff[2]];
-        prediff = [diff[0] - prediff[0], diff[1] - prediff[1], diff[2] - prediff[2]];
-        preprediff = [prediff[0] - preprediff[0], prediff[1] - preprediff[1], prediff[2] - preprediff[2]];
+        diff = [motor1, motor2, motor3];
+        prediff = [diff[0], diff[1], diff[2]];
+        preprediff = [prediff[0], prediff[1], prediff[2]];
     }
     /*
 
