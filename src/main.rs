@@ -1,6 +1,5 @@
 use serialport;
 use std::time::Duration;
-use std::thread::sleep;
 use std::f64::consts::PI;
 use std::time::SystemTime;
 
@@ -47,6 +46,14 @@ fn main() {
     let motor_dir_x_y :[[f64; 2]; 3] = [[MOTOR1_DIR.cos(), MOTOR1_DIR.sin()],
                                         [MOTOR2_DIR.cos(), MOTOR2_DIR.sin()],
                                         [MOTOR3_DIR.cos(), MOTOR3_DIR.sin()]];
+                                        
+    let mut diff :[f64; 3] = [0.0, 0.0, 0.0];
+    let mut prediff :[f64; 3] = [0.0, 0.0, 0.0];
+    let mut preprediff :[f64; 3] = [0.0, 0.0, 0.0];
+
+    const KP :f64 = 0.7;
+    const KI :f64 = 0.6;
+    const KD :f64 = 0.3;
 
     let now = SystemTime::now();
     loop {
@@ -64,9 +71,26 @@ fn main() {
            let motor3 :f64 = (direction_sceta_dig - MOTOR3_DIR).cos();
            */
 
-        let motor1 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[0][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[0][1];
-        let motor2 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[1][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[1][1];
-        let motor3 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[2][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[2][1];
+        let mut motor1 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[0][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[0][1];
+        let mut motor2 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[1][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[1][1];
+        let mut motor3 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[2][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[2][1];
+
+        //PID
+        let delta_motion :[f64; 3] = [
+            KP*(diff[0] - prediff[0]) + KI*diff[0] + KD*((diff[0]-prediff[0])-(prediff[0]-preprediff[0])),
+            KP*(diff[1] - prediff[1]) + KI*diff[1] + KD*((diff[1]-prediff[1])-(prediff[1]-preprediff[1])),
+            KP*(diff[2] - prediff[2]) + KI*diff[2] + KD*((diff[2]-prediff[2])-(prediff[2]-preprediff[2])),
+        ];
+        motor1 = motor1 + delta_motion[0];
+        motor2 = motor2 + delta_motion[1];
+        motor3 = motor3 + delta_motion[2];
+        // clamp
+        if motor1 > 1.0 { motor1  = 1.0; }
+        if motor2 > 1.0 { motor2  = 1.0; }
+        if motor3 > 1.0 { motor3  = 1.0; }
+        if motor1 < -1.0 { motor1  = -1.0; }
+        if motor2 < -1.0 { motor2  = -1.0; }
+        if motor3 < -1.0 { motor3  = -1.0; }
 
         let motor :[i8; 3] = [(motor1*-50.0) as i8, (motor2*-50.0) as i8, (motor3*-50.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
@@ -76,6 +100,11 @@ fn main() {
 
         port.write(cmd).unwrap();
         port.flush().unwrap();
+
+        // duration
+        diff = [motor1 - diff[0], motor2 - diff[1], motor3 - diff[2]];
+        prediff = [diff[0] - prediff[0], diff[1] - prediff[1], diff[2] - prediff[2]];
+        preprediff = [prediff[0] - preprediff[0], prediff[1] - preprediff[1], prediff[2] - preprediff[2]];
     }
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
