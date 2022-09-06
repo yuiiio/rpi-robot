@@ -51,9 +51,9 @@ fn main() {
     let mut prediff :[f64; 3] = [0.0, 0.0, 0.0];
     let mut preprediff :[f64; 3] = [0.0, 0.0, 0.0];
 
-    const KP :f64 = 0.7;
-    const KI :f64 = 0.6;
-    const KD :f64 = 0.3;
+    const KP :f64 = 0.2;
+    const KI :f64 = 0.2;
+    const KD :f64 = 0.2;
 
     let now = SystemTime::now();
     loop {
@@ -102,9 +102,10 @@ fn main() {
         port.flush().unwrap();
 
         // duration
-        diff = [motor1 - diff[0], motor2 - diff[1], motor3 - diff[2]];
-        prediff = [diff[0] - prediff[0], diff[1] - prediff[1], diff[2] - prediff[2]];
-        preprediff = [prediff[0] - preprediff[0], prediff[1] - preprediff[1], prediff[2] - preprediff[2]];
+        diff = [motor1, motor2, motor3];
+        prediff = [diff[0], diff[1], diff[2]];
+        preprediff = [prediff[0], prediff[1], prediff[2]];
+
     }
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
