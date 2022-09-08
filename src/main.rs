@@ -51,8 +51,8 @@ fn main() {
     let mut prediff :[f64; 3] = [0.0, 0.0, 0.0];
     let mut preprediff :[f64; 3] = [0.0, 0.0, 0.0];
 
-    const KP :f64 = 0.3;
-    const KI :f64 = 0.17;
+    const KP :f64 = 0.05;
+    const KI :f64 = 0.05;
     const KD :f64 = 0.1;
 
     let now = SystemTime::now();
@@ -62,7 +62,13 @@ fn main() {
             break;
         }
 
-        let sceta: f64 = (360.0 / 4.0) * time;
+        let mut sceta: f64 = 0.0;
+        
+        if time <= 2.0 {
+            sceta = (360.0 / 2.0) * time
+        } else {
+            sceta = 360.0 - ((360.0 / 2.0) * (time - 2.0));
+        }
 
         let direction_sceta :u16 = sceta as u16;// 0 ~ 360
         let direction_sceta_dig : f64 = (direction_sceta as f64) / (360 as f64) * 2.0 * PI;
