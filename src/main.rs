@@ -4,6 +4,8 @@ use std::time::{Instant, Duration};
 use std::io;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use rppal::spi;
+use rppal::spi::{Spi, Bus, SlaveSelect};
 
 fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
 
@@ -63,10 +65,9 @@ fn main() {
 
     const KP :f64 = 0.2;
     const KI :f64 = 0.2;
-    const KD :f64 = 0.2;
+    const KD :f64 = 1.2;
 
-    let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
-
+    let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
     let from_controller_params_clone = Arc::clone(&from_controller_params);
 
     let handle = thread::spawn(move || {
@@ -81,11 +82,38 @@ fn main() {
         }
     });
 
+    let from_sensor_dir :Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
+    let from_sensor_dir_clone = Arc::clone(&from_sensor_dir);
+
+    let handle2 = thread::spawn(move || {
+        //let ten_micros = time::Duration::from_micros(10);
+        let mut spi = Spi::new( Bus::Spi0, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
+        let write_data :Vec<u8> = vec![0x20];
+        let mut read_data1 :Vec<u8> = vec![0];
+        let mut read_data2 :Vec<u8> = vec![0];
+        loop{
+            let _ret = spi.write( &write_data );
+            //thread::sleep(ten_micros);
+            let _ret = spi.read( &mut read_data1 ).expect("Failed Spi::read");
+            //thread::sleep(ten_micros);
+            let _ret = spi.read( &mut read_data2 ).expect("Failed Spi::read");
+            //thread::sleep(ten_micros);
+
+            let dir: u16 = ((read_data1[0] as u16) << 8 ) | read_data2[0] as u16;
+            //println!("{}", dir);
+            let mut param = from_sensor_dir_clone.lock().unwrap();
+            *param = dir;
+        }
+    });
 
     let now = Instant::now();
     loop {
         let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
+
+        let robot_dir :u16 = 0;
+        let sensor_dir :u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
+        let mod_sensor_dir :u16 = (180 - robot_dir);
 
         //println!("{}, {}", direction_sceta, power);
 
@@ -122,6 +150,15 @@ fn main() {
         motor1 = motor1 * power;
         motor2 = motor2 * power;
         motor3 = motor3 * power;
+        
+        //senosrs dir feedback
+        let mut dir_diff: f64 = 0.0; //0~360
+        if robot_dir + 180 <= sensor_dir ||  {
+            dir_diff = (robot_dir-sensor_dir) as f64;
+        }
+        motor1 = motor1 + 0.1 * dir_diff;
+        motor2 = motor2 + 0.1 * dir_diff;
+        motor3 = motor3 + 0.1 * dir_diff;
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
@@ -174,6 +211,7 @@ fn main() {
         pre_val = [ motor1, motor2, motor3 ];
     }
     handle.join().unwrap();
+    handle2.join().unwrap();
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
     //let force_stop_motor: &[u8; 21] = b"1R0002R0003R0004R000\n";
