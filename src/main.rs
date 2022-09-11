@@ -1,6 +1,7 @@
 use serialport;
 use std::f64::consts::PI;
 use std::time::{Instant, Duration};
+use std::io;
 
 fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
 
@@ -64,6 +65,15 @@ fn main() {
 
     let now = Instant::now();
     loop {
+        let mut from_controller_str = String::new();
+        io::stdin().read_line(&mut from_controller_str).unwrap();
+        let mut from_controller = from_controller_str.split(' ');
+        let direction_sceta :u16 = from_controller.next().unwrap().parse::<u16>().unwrap();
+        let power_u8: u8 = from_controller.next().unwrap().trim_matches('\n').parse::<u8>().unwrap();
+        let power: f64 = power_u8 as f64 / 255.0 as f64;
+        //println!("{}, {}", direction_sceta, power);
+
+        /*
         let time :f64 = now.elapsed().as_secs_f64();
         if time >= 4.0 {
             break;
@@ -78,6 +88,8 @@ fn main() {
         }
 
         let direction_sceta :u16 = sceta as u16;// 0 ~ 360
+        */
+
         let direction_sceta_dig : f64 = (direction_sceta as f64) / (360 as f64) * 2.0 * PI;
         let direction_sceta_dig_x_y : [f64; 2] = [direction_sceta_dig.cos(), direction_sceta_dig.sin()];
 
@@ -90,6 +102,10 @@ fn main() {
         let mut motor1 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[0][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[0][1];
         let mut motor2 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[1][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[1][1];
         let mut motor3 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[2][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[2][1];
+
+        motor1 = motor1 * power;
+        motor2 = motor2 * power;
+        motor3 = motor3 * power;
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
@@ -106,14 +122,20 @@ fn main() {
             integral[2] + ((error[0][2] + error[1][2])/2.0 * time_after_command),
         ];
         let delta_motion :[f64; 3] = [
-            KP*error[1][0] + KI*integral[0] + (KD*((error[1][0] - error[0][0]) / time_after_command)*0.00000001),
-            KP*error[1][1] + KI*integral[1] + (KD*((error[1][1] - error[0][1]) / time_after_command)*0.00000001),
-            KP*error[1][2] + KI*integral[2] + (KD*((error[1][2] - error[0][2]) / time_after_command)*0.00000001),
+            KP*error[1][0] + KI*integral[0] + (KD*((error[1][0] - error[0][0]) / time_after_command)*0.0000001),
+            KP*error[1][1] + KI*integral[1] + (KD*((error[1][1] - error[0][1]) / time_after_command)*0.0000001),
+            KP*error[1][2] + KI*integral[2] + (KD*((error[1][2] - error[0][2]) / time_after_command)*0.0000001),
         ];
 
         motor1 = motor1 + delta_motion[0];
         motor2 = motor2 + delta_motion[1];
         motor3 = motor3 + delta_motion[2];
+        
+        //log scale
+        motor1 = if motor1 >= 0.0 { (motor1 + 1.0).log(10.0) / (2.0 as f64).log(10.0) } else { (motor1.abs() + 1.0).log(10.0) / (2.0 as f64).log(10.0) * -1.0 };
+        motor2 = if motor2 >= 0.0 { (motor2 + 1.0).log(10.0) / (2.0 as f64).log(10.0) } else { (motor2.abs() + 1.0).log(10.0) / (2.0 as f64).log(10.0) * -1.0 };
+        motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log(10.0) / (2.0 as f64).log(10.0) } else { (motor3.abs() + 1.0).log(10.0) / (2.0 as f64).log(10.0) * -1.0 };
+
         // clamp
         if motor1 > 1.0 { motor1  = 1.0; }
         if motor2 > 1.0 { motor2  = 1.0; }
