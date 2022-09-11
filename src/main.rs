@@ -1,7 +1,6 @@
 use serialport;
-use std::time::Duration;
 use std::f64::consts::PI;
-use std::time::SystemTime;
+use std::time::{Instant, Duration};
 
 fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
 
@@ -47,17 +46,25 @@ fn main() {
                                         [MOTOR2_DIR.cos(), MOTOR2_DIR.sin()],
                                         [MOTOR3_DIR.cos(), MOTOR3_DIR.sin()]];
                                         
-    let mut diff :[f64; 3] = [0.0, 0.0, 0.0];
-    let mut prediff :[f64; 3] = [0.0, 0.0, 0.0];
-    let mut preprediff :[f64; 3] = [0.0, 0.0, 0.0];
+    //used by PID
+    let mut last_command_time: f64 = 0.0;
 
-    const KP :f64 = 0.05;
-    const KI :f64 = 0.05;
-    const KD :f64 = 0.1;
+    let mut pre_val :[f64; 3] = [0.0, 0.0, 0.0];
 
-    let now = SystemTime::now();
+    let mut error :[[f64; 3]; 2] = [
+        [0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ];
+
+    let mut integral :[f64; 3] = [0.0, 0.0, 0.0];
+
+    const KP :f64 = 0.2;
+    const KI :f64 = 0.2;
+    const KD :f64 = 0.2;
+
+    let now = Instant::now();
     loop {
-        let time :f64 = now.elapsed().unwrap().as_secs_f64();
+        let time :f64 = now.elapsed().as_secs_f64();
         if time >= 4.0 {
             break;
         }
@@ -85,11 +92,25 @@ fn main() {
         let mut motor3 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[2][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[2][1];
 
         //PID
-        let delta_motion :[f64; 3] = [
-            KP*(diff[0] - prediff[0]) + KI*diff[0] + KD*((diff[0]-prediff[0])-(prediff[0]-preprediff[0])),
-            KP*(diff[1] - prediff[1]) + KI*diff[1] + KD*((diff[1]-prediff[1])-(prediff[1]-preprediff[1])),
-            KP*(diff[2] - prediff[2]) + KI*diff[2] + KD*((diff[2]-prediff[2])-(prediff[2]-preprediff[2])),
+        let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
+
+        error[0] = error[1];
+        error[1] = [
+            motor1 - pre_val[0],
+            motor2 - pre_val[1],
+            motor3 - pre_val[2],
         ];
+        integral = [
+            integral[0] + ((error[0][0] + error[1][0])/2.0 * time_after_command),
+            integral[1] + ((error[0][1] + error[1][1])/2.0 * time_after_command),
+            integral[2] + ((error[0][2] + error[1][2])/2.0 * time_after_command),
+        ];
+        let delta_motion :[f64; 3] = [
+            KP*error[1][0] + KI*integral[0] + (KD*((error[1][0] - error[0][0]) / time_after_command)*0.00000001),
+            KP*error[1][1] + KI*integral[1] + (KD*((error[1][1] - error[0][1]) / time_after_command)*0.00000001),
+            KP*error[1][2] + KI*integral[2] + (KD*((error[1][2] - error[0][2]) / time_after_command)*0.00000001),
+        ];
+
         motor1 = motor1 + delta_motion[0];
         motor2 = motor2 + delta_motion[1];
         motor3 = motor3 + delta_motion[2];
@@ -110,11 +131,9 @@ fn main() {
         port.write(cmd).unwrap();
         port.flush().unwrap();
 
-        // duration
-        diff = [motor1, motor2, motor3];
-        prediff = [diff[0], diff[1], diff[2]];
-        preprediff = [prediff[0], prediff[1], prediff[2]];
-
+        // used by PID
+        last_command_time = now.elapsed().as_secs_f64();
+        pre_val = [ motor1, motor2, motor3 ];
     }
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
