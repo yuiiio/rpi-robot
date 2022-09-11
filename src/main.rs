@@ -2,6 +2,8 @@ use serialport;
 use std::f64::consts::PI;
 use std::time::{Instant, Duration};
 use std::io;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
 
@@ -63,14 +65,28 @@ fn main() {
     const KI :f64 = 0.2;
     const KD :f64 = 0.2;
 
+    let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
+
+    let from_controller_params_clone = Arc::clone(&from_controller_params);
+
+    let handle = thread::spawn(move || {
+        loop {
+            let mut from_controller_str = String::new();
+            io::stdin().read_line(&mut from_controller_str).unwrap();
+            let mut from_controller = from_controller_str.split(' ');
+            let direction_sceta :u16 = from_controller.next().unwrap().parse::<u16>().unwrap();
+            let power_u8: u8 = from_controller.next().unwrap().trim_matches('\n').parse::<u8>().unwrap();
+            let mut params = from_controller_params_clone.lock().unwrap();
+            *params = (direction_sceta, power_u8);
+        }
+    });
+
+
     let now = Instant::now();
     loop {
-        let mut from_controller_str = String::new();
-        io::stdin().read_line(&mut from_controller_str).unwrap();
-        let mut from_controller = from_controller_str.split(' ');
-        let direction_sceta :u16 = from_controller.next().unwrap().parse::<u16>().unwrap();
-        let power_u8: u8 = from_controller.next().unwrap().trim_matches('\n').parse::<u8>().unwrap();
+        let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
+
         //println!("{}, {}", direction_sceta, power);
 
         /*
@@ -132,9 +148,9 @@ fn main() {
         motor3 = motor3 + delta_motion[2];
         
         //log scale
-        motor1 = if motor1 >= 0.0 { (motor1 + 1.0).log(10.0) / (2.0 as f64).log(10.0) } else { (motor1.abs() + 1.0).log(10.0) / (2.0 as f64).log(10.0) * -1.0 };
-        motor2 = if motor2 >= 0.0 { (motor2 + 1.0).log(10.0) / (2.0 as f64).log(10.0) } else { (motor2.abs() + 1.0).log(10.0) / (2.0 as f64).log(10.0) * -1.0 };
-        motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log(10.0) / (2.0 as f64).log(10.0) } else { (motor3.abs() + 1.0).log(10.0) / (2.0 as f64).log(10.0) * -1.0 };
+        motor1 = if motor1 >= 0.0 { (motor1 + 1.0).log2() } else { (motor1.abs() + 1.0).log2() * -1.0 };
+        motor2 = if motor2 >= 0.0 { (motor2 + 1.0).log2() } else { (motor2.abs() + 1.0).log2() * -1.0 };
+        motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log2() } else { (motor3.abs() + 1.0).log2() * -1.0 };
 
         // clamp
         if motor1 > 1.0 { motor1  = 1.0; }
@@ -157,6 +173,7 @@ fn main() {
         last_command_time = now.elapsed().as_secs_f64();
         pre_val = [ motor1, motor2, motor3 ];
     }
+    handle.join().unwrap();
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
     //let force_stop_motor: &[u8; 21] = b"1R0002R0003R0004R000\n";
