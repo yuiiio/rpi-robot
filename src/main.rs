@@ -111,9 +111,11 @@ fn main() {
         let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
 
-        let robot_dir :u16 = 0;
+        let robot_dir :u16 = 0; //controll
+
         let sensor_dir :u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
-        let mod_sensor_dir :u16 = (180 - robot_dir);
+        let mod_robot_dir :u16 = if robot_dir <= 180 {180 + robot_dir} else {robot_dir - 180}; //centelyzed by 180
+        let mod_sensor_dir :u16 = if sensor_dir <= 180 {180 + sensor_dir} else {sensor_dir - 180}; //centelyzed by 180
 
         //println!("{}, {}", direction_sceta, power);
 
@@ -152,10 +154,8 @@ fn main() {
         motor3 = motor3 * power;
         
         //senosrs dir feedback
-        let mut dir_diff: f64 = 0.0; //0~360
-        if robot_dir + 180 <= sensor_dir ||  {
-            dir_diff = (robot_dir-sensor_dir) as f64;
-        }
+        let dir_diff: f64 = (mod_robot_dir as f64) - (mod_sensor_dir as f64); //0~360 //mod is centelyzed by 180
+
         motor1 = motor1 + 0.1 * dir_diff;
         motor2 = motor2 + 0.1 * dir_diff;
         motor3 = motor3 + 0.1 * dir_diff;
