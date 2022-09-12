@@ -63,8 +63,8 @@ fn main() {
 
     let mut integral :[f64; 3] = [0.0, 0.0, 0.0];
 
-    const KP :f64 = 0.2;
-    const KI :f64 = 0.2;
+    const KP :f64 = 0.4;
+    const KI :f64 = 0.1;
     const KD :f64 = 1.2;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
@@ -111,7 +111,7 @@ fn main() {
         let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
 
-        let robot_dir :u16 = 0; //controll
+        let robot_dir :u16 = 90; //controll
 
         let sensor_dir :u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
         let mod_robot_dir :u16 = if robot_dir <= 180 {180 + robot_dir} else {robot_dir - 180}; //centelyzed by 180
@@ -154,11 +154,13 @@ fn main() {
         motor3 = motor3 * power;
         
         //senosrs dir feedback
-        let dir_diff: f64 = (mod_robot_dir as f64) - (mod_sensor_dir as f64); //0~360 //mod is centelyzed by 180
-
-        motor1 = motor1 + 0.1 * dir_diff;
-        motor2 = motor2 + 0.1 * dir_diff;
-        motor3 = motor3 + 0.1 * dir_diff;
+        let dir_diff_angle :f64 = (mod_robot_dir as f64) - (mod_sensor_dir as f64); //-180~180 //mod is centelyzed by 180
+        let dir_diff :f64 = dir_diff_angle / 180.0; // -1.0~1.0
+        if dir_diff.abs() >= 0.1 {
+            motor1 += dir_diff.clamp(-0.2, 0.2)*0.5;
+            motor2 += dir_diff.clamp(-0.2, 0.2)*0.5;
+            motor3 += dir_diff.clamp(-0.2, 0.2)*0.5;
+        }
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
@@ -190,12 +192,9 @@ fn main() {
         motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log2() } else { (motor3.abs() + 1.0).log2() * -1.0 };
 
         // clamp
-        if motor1 > 1.0 { motor1  = 1.0; }
-        if motor2 > 1.0 { motor2  = 1.0; }
-        if motor3 > 1.0 { motor3  = 1.0; }
-        if motor1 < -1.0 { motor1  = -1.0; }
-        if motor2 < -1.0 { motor2  = -1.0; }
-        if motor3 < -1.0 { motor3  = -1.0; }
+        motor1 = motor1.clamp(-1.0, 1.0);
+        motor2 = motor2.clamp(-1.0, 1.0);
+        motor3 = motor3.clamp(-1.0, 1.0);
 
         let motor :[i8; 3] = [(motor1*-50.0) as i8, (motor2*-50.0) as i8, (motor3*-50.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
