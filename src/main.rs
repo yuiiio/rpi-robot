@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use rppal::spi;
 use rppal::spi::{Spi, Bus, SlaveSelect};
+use rppal::gpio::{Gpio, Level};
 
 fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
 
@@ -65,12 +66,12 @@ fn main() {
 
     const KP :f64 = 0.4;
     const KI :f64 = 0.1;
-    const KD :f64 = 1.2;
+    const KD :f64 = 0.6;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
     let from_controller_params_clone = Arc::clone(&from_controller_params);
 
-    let handle = thread::spawn(move || {
+    let _handle = thread::spawn(move || {
         loop {
             let mut from_controller_str = String::new();
             io::stdin().read_line(&mut from_controller_str).unwrap();
@@ -85,7 +86,7 @@ fn main() {
     let from_sensor_dir :Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
     let from_sensor_dir_clone = Arc::clone(&from_sensor_dir);
 
-    let handle2 = thread::spawn(move || {
+    let _handle2 = thread::spawn(move || {
         //let ten_micros = time::Duration::from_micros(10);
         let mut spi = Spi::new( Bus::Spi0, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
         let write_data :Vec<u8> = vec![0x20];
@@ -106,8 +107,36 @@ fn main() {
         }
     });
 
-    let now = Instant::now();
+    let program_switch :Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    let program_switch_clone = Arc::clone(&program_switch);
+    let _handle3 = thread::spawn(move || {
+        let gpio = Gpio::new().unwrap();
+        let pin = gpio.get(21).unwrap().into_input();
+        loop{
+            thread::sleep(Duration::from_millis(50));
+            let val :bool = match pin.read() { Level::High => true, Level::Low => false, };
+            let mut param = program_switch_clone.lock().unwrap();
+            *param = val;
+        }
+    });
+    
+    thread::sleep(Duration::from_millis(100));
+
     loop {
+        let pin_val = *(program_switch.lock().unwrap());
+        if pin_val == false { break; }
+    }
+
+    loop {
+        let pin_val = *(program_switch.lock().unwrap());
+        if pin_val == true { break; }
+    }
+
+    let now = Instant::now();
+    'outer: loop {
+        let pin_val = *(program_switch.lock().unwrap());
+        if pin_val == false { break 'outer; }
+
         let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
 
@@ -209,8 +238,9 @@ fn main() {
         last_command_time = now.elapsed().as_secs_f64();
         pre_val = [ motor1, motor2, motor3 ];
     }
-    handle.join().unwrap();
-    handle2.join().unwrap();
+    //handle.join().unwrap();
+    //handle2.join().unwrap();
+    //handle3.join().unwrap();
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
     //let force_stop_motor: &[u8; 21] = b"1R0002R0003R0004R000\n";
