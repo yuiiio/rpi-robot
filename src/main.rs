@@ -55,18 +55,12 @@ fn main() {
     //used by PID
     let mut last_command_time: f64 = 0.0;
 
-    let mut pre_val :[f64; 3] = [0.0, 0.0, 0.0];
+    let mut error :[f64; 3] = [0.0, 0.0, 0.0];
+    let mut integral :f64 = 0.0;
 
-    let mut error :[[f64; 3]; 2] = [
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-    ];
-
-    let mut integral :[f64; 3] = [0.0, 0.0, 0.0];
-
-    const KP :f64 = 0.4;
-    const KI :f64 = 0.1;
-    const KD :f64 = 0.6;
+    const KP :f64 = 0.3;
+    const KI :f64 = 0.3;
+    const KD :f64 = 0.4;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
     let from_controller_params_clone = Arc::clone(&from_controller_params);
@@ -146,33 +140,8 @@ fn main() {
         let mod_robot_dir :u16 = if robot_dir <= 180 {180 + robot_dir} else {robot_dir - 180}; //centelyzed by 180
         let mod_sensor_dir :u16 = if sensor_dir <= 180 {180 + sensor_dir} else {sensor_dir - 180}; //centelyzed by 180
 
-        //println!("{}, {}", direction_sceta, power);
-
-        /*
-        let time :f64 = now.elapsed().as_secs_f64();
-        if time >= 4.0 {
-            break;
-        }
-
-        let mut sceta: f64 = 0.0;
-        
-        if time <= 2.0 {
-            sceta = (360.0 / 2.0) * time
-        } else {
-            sceta = 360.0 - ((360.0 / 2.0) * (time - 2.0));
-        }
-
-        let direction_sceta :u16 = sceta as u16;// 0 ~ 360
-        */
-
         let direction_sceta_dig : f64 = (direction_sceta as f64) / (360 as f64) * 2.0 * PI;
         let direction_sceta_dig_x_y : [f64; 2] = [direction_sceta_dig.cos(), direction_sceta_dig.sin()];
-
-        /*
-           let motor1 :f64 = (direction_sceta_dig - MOTOR1_DIR).cos();
-           let motor2 :f64 = (direction_sceta_dig - MOTOR2_DIR).cos();
-           let motor3 :f64 = (direction_sceta_dig - MOTOR3_DIR).cos();
-           */
 
         let mut motor1 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[0][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[0][1];
         let mut motor2 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[1][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[1][1];
@@ -184,41 +153,31 @@ fn main() {
         
         //senosrs dir feedback
         let dir_diff_angle :f64 = (mod_robot_dir as f64) - (mod_sensor_dir as f64); //-180~180 //mod is centelyzed by 180
-        let dir_diff :f64 = dir_diff_angle / 180.0; // -1.0~1.0
+        let mut dir_diff :f64 = dir_diff_angle / 180.0; // -1.0~1.0
         if dir_diff.abs() >= 0.1 {
-            motor1 += dir_diff.clamp(-0.2, 0.2)*0.5;
-            motor2 += dir_diff.clamp(-0.2, 0.2)*0.5;
-            motor3 += dir_diff.clamp(-0.2, 0.2)*0.5;
+            dir_diff = dir_diff.clamp(-0.3, 0.3) * 3.0;
+        } else {
+            dir_diff = 0.0;
         }
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
 
         error[0] = error[1];
-        error[1] = [
-            motor1 - pre_val[0],
-            motor2 - pre_val[1],
-            motor3 - pre_val[2],
-        ];
-        integral = [
-            integral[0] + ((error[0][0] + error[1][0])/2.0 * time_after_command),
-            integral[1] + ((error[0][1] + error[1][1])/2.0 * time_after_command),
-            integral[2] + ((error[0][2] + error[1][2])/2.0 * time_after_command),
-        ];
-        let delta_motion :[f64; 3] = [
-            KP*error[1][0] + KI*integral[0] + (KD*((error[1][0] - error[0][0]) / time_after_command)*0.0000001),
-            KP*error[1][1] + KI*integral[1] + (KD*((error[1][1] - error[0][1]) / time_after_command)*0.0000001),
-            KP*error[1][2] + KI*integral[2] + (KD*((error[1][2] - error[0][2]) / time_after_command)*0.0000001),
-        ];
+        error[1] = dir_diff;
+        integral += (error[0] + error[1])/2.0 * time_after_command;
+        let delta_dir_motion :f64 = KP*error[1] + KI*integral + (KD*((error[1] - error[0]) / time_after_command));
 
-        motor1 = motor1 + delta_motion[0];
-        motor2 = motor2 + delta_motion[1];
-        motor3 = motor3 + delta_motion[2];
+        motor1 += delta_dir_motion;
+        motor2 += delta_dir_motion;
+        motor3 += delta_dir_motion;
         
         //log scale
+        /*
         motor1 = if motor1 >= 0.0 { (motor1 + 1.0).log2() } else { (motor1.abs() + 1.0).log2() * -1.0 };
         motor2 = if motor2 >= 0.0 { (motor2 + 1.0).log2() } else { (motor2.abs() + 1.0).log2() * -1.0 };
         motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log2() } else { (motor3.abs() + 1.0).log2() * -1.0 };
+        */
 
         // clamp
         motor1 = motor1.clamp(-1.0, 1.0);
@@ -236,11 +195,7 @@ fn main() {
 
         // used by PID
         last_command_time = now.elapsed().as_secs_f64();
-        pre_val = [ motor1, motor2, motor3 ];
     }
-    //handle.join().unwrap();
-    //handle2.join().unwrap();
-    //handle3.join().unwrap();
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
     //let force_stop_motor: &[u8; 21] = b"1R0002R0003R0004R000\n";
