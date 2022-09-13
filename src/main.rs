@@ -58,9 +58,9 @@ fn main() {
     let mut error :[f64; 3] = [0.0, 0.0, 0.0];
     let mut integral :f64 = 0.0;
 
-    const KP :f64 = 0.6;
-    const KI :f64 = 0.00005;
-    const KD :f64 = 0.00002;
+    const KP :f64 = 0.8;
+    const KI :f64 = 200.0;
+    const KD :f64 = 0.00003;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
     let from_controller_params_clone = Arc::clone(&from_controller_params);
@@ -127,6 +127,7 @@ fn main() {
     }
 
     let now = Instant::now();
+    let mut cycle_num: u8 = 0;
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
         if pin_val == false { break 'outer; }
@@ -159,11 +160,21 @@ fn main() {
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
+        //println!("time_after_command: {}", time_after_command);
+
+        cycle_num += 1;
+        if cycle_num > 100 {
+            cycle_num = 0;
+            integral = 0.0;
+        }
 
         error[0] = error[1];
         error[1] = dir_diff;
         integral += (error[0] + error[1])/2.0 * time_after_command;
         let delta_dir_motion :f64 = KP*error[1] + KI*integral + (KD*((error[1] - error[0]) / time_after_command));
+
+        //println!("integral: {}", integral);
+        //println!("delta_dir_motion: {}", delta_dir_motion);
 
         motor1 += delta_dir_motion;
         motor2 += delta_dir_motion;
