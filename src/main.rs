@@ -58,9 +58,9 @@ fn main() {
     let mut error :[f64; 3] = [0.0, 0.0, 0.0];
     let mut integral :f64 = 0.0;
 
-    const KP :f64 = 0.3;
-    const KI :f64 = 0.3;
-    const KD :f64 = 0.4;
+    const KP :f64 = 0.6;
+    const KI :f64 = 0.00005;
+    const KD :f64 = 0.00002;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
     let from_controller_params_clone = Arc::clone(&from_controller_params);
@@ -154,11 +154,8 @@ fn main() {
         //senosrs dir feedback
         let dir_diff_angle :f64 = (mod_robot_dir as f64) - (mod_sensor_dir as f64); //-180~180 //mod is centelyzed by 180
         let mut dir_diff :f64 = dir_diff_angle / 180.0; // -1.0~1.0
-        if dir_diff.abs() >= 0.1 {
-            dir_diff = dir_diff.clamp(-0.3, 0.3) * 3.0;
-        } else {
-            dir_diff = 0.0;
-        }
+
+        dir_diff = dir_diff.clamp(-0.5, 0.5);
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
@@ -183,6 +180,9 @@ fn main() {
         motor1 = motor1.clamp(-1.0, 1.0);
         motor2 = motor2.clamp(-1.0, 1.0);
         motor3 = motor3.clamp(-1.0, 1.0);
+
+        //save motor
+        if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
         let motor :[i8; 3] = [(motor1*-50.0) as i8, (motor2*-50.0) as i8, (motor3*-50.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
