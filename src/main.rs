@@ -139,8 +139,8 @@ fn main() {
         let robot_dir :u16 = 90; //controll
 
         let sensor_dir :u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
-        let mod_robot_dir :u16 = if robot_dir <= 180 {180 + robot_dir} else {robot_dir - 180}; //centelyzed by 180
-        let mod_sensor_dir :u16 = if sensor_dir <= 180 {180 + sensor_dir} else {sensor_dir - 180}; //centelyzed by 180
+        let sensor_dir_diff :i16 = sensor_dir as i16 - robot_dir as i16;
+        let mod_robot_dir :u16 = if sensor_dir_diff < 0 { (360 + sensor_dir_diff) as u16 } else { sensor_dir_diff as u16 }; //centelyzed by robot_dir
 
         let direction_sceta_dig : f64 = (direction_sceta as f64) / (360 as f64) * 2.0 * PI;
         let direction_sceta_dig_x_y : [f64; 2] = [direction_sceta_dig.cos(), direction_sceta_dig.sin()];
@@ -154,7 +154,7 @@ fn main() {
         motor3 = motor3 * power;
         
         //senosrs dir feedback
-        let dir_diff_angle :f64 = (mod_robot_dir as f64) - (mod_sensor_dir as f64); //-180~180 //mod is centelyzed by 180
+        let dir_diff_angle :f64 = if mod_robot_dir <= 180 { -1.0 * (mod_robot_dir as f64) } else { 360.0 - (mod_robot_dir as f64) }; //-180~180 //mod is centelyzed by robot_dir
         let mut dir_diff :f64 = dir_diff_angle / 180.0; // -1.0~1.0
 
         dir_diff = dir_diff.clamp(-0.5, 0.5);
