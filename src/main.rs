@@ -52,14 +52,15 @@ fn main() {
                                         [MOTOR2_DIR.cos(), MOTOR2_DIR.sin()],
                                         [MOTOR3_DIR.cos(), MOTOR3_DIR.sin()]];
                                         
+    let mut preval :[f64; 3] = [0.0, 0.0, 0.0];
     //used by PID
     let mut last_command_time: f64 = 0.0;
 
     let mut error :[f64; 3] = [0.0, 0.0, 0.0];
     let mut integral :f64 = 0.0;
 
-    const KP :f64 = 0.8;
-    const KI :f64 = 200.0;
+    const KP :f64 = 0.7;
+    const KI :f64 = 100.0;
     const KD :f64 = 0.00003;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
@@ -187,13 +188,17 @@ fn main() {
         motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log2() } else { (motor3.abs() + 1.0).log2() * -1.0 };
         */
 
+        if preval[0] == 0.0 { motor1 += 0.05; }
+        if preval[1] == 0.0 { motor2 += 0.05; }
+        if preval[2] == 0.0 { motor3 += 0.05; }
+
         // clamp
         motor1 = motor1.clamp(-1.0, 1.0);
         motor2 = motor2.clamp(-1.0, 1.0);
         motor3 = motor3.clamp(-1.0, 1.0);
 
         //save motor
-        if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
+        if motor1.abs() < 0.15 && motor2.abs() < 0.15 && motor3.abs() < 0.15 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
         let motor :[i8; 3] = [(motor1*-50.0) as i8, (motor2*-50.0) as i8, (motor3*-50.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
@@ -204,6 +209,7 @@ fn main() {
         port.write(cmd).unwrap();
         port.flush().unwrap();
 
+        preval = [ motor1, motor2, motor3 ];
         // used by PID
         last_command_time = now.elapsed().as_secs_f64();
     }
