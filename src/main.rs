@@ -106,7 +106,7 @@ fn main() {
     let program_switch_clone = Arc::clone(&program_switch);
     let _handle3 = thread::spawn(move || {
         let gpio = Gpio::new().unwrap();
-        let pin = gpio.get(21).unwrap().into_input();
+        let pin = gpio.get(6).unwrap().into_input();
         loop{
             thread::sleep(Duration::from_millis(50));
             let val :bool = match pin.read() { Level::High => true, Level::Low => false, };
@@ -136,7 +136,7 @@ fn main() {
         let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
 
-        let robot_dir :u16 = 90; //controll
+        let robot_dir :u16 = 270; //controll
 
         let sensor_dir :u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
         let sensor_dir_diff :i16 = sensor_dir as i16 - robot_dir as i16;
