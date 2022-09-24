@@ -83,16 +83,16 @@ fn main() {
 
     let _handle2 = thread::spawn(move || {
         //let ten_micros = time::Duration::from_micros(10);
-        let mut spi = Spi::new( Bus::Spi0, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
+        let mut spi0_0 = Spi::new( Bus::Spi0, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
         let write_data :Vec<u8> = vec![0x20];
         let mut read_data1 :Vec<u8> = vec![0];
         let mut read_data2 :Vec<u8> = vec![0];
         loop{
-            let _ret = spi.write( &write_data );
+            let _ret = spi0_0.write( &write_data );
             //thread::sleep(ten_micros);
-            let _ret = spi.read( &mut read_data1 ).expect("Failed Spi::read");
+            let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
             //thread::sleep(ten_micros);
-            let _ret = spi.read( &mut read_data2 ).expect("Failed Spi::read");
+            let _ret = spi0_0.read( &mut read_data2 ).expect("Failed Spi::read");
             //thread::sleep(ten_micros);
 
             let dir: u16 = ((read_data1[0] as u16) << 8 ) | read_data2[0] as u16;
@@ -112,6 +112,30 @@ fn main() {
             let val :bool = match pin.read() { Level::High => true, Level::Low => false, };
             let mut param = program_switch_clone.lock().unwrap();
             *param = val;
+        }
+    });
+
+    let IR_sensor :Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
+    let IR_sensor_clone = Arc::clone(&IR_sensor);
+
+    let _handle4 = thread::spawn(move || {
+        let lpc1114_wait = Duration::from_micros(10000);
+        let mut spi1_0 = Spi::new( Bus::Spi1, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
+        let write_data :Vec<u8> = vec![0x40];
+        let mut read_data1 :Vec<u8> = vec![0];
+        let mut read_data2 :Vec<u8> = vec![0];
+        loop{
+            let _ret = spi1_0.write( &write_data );
+            thread::sleep(lpc1114_wait);
+            let _ret = spi1_0.read( &mut read_data1 ).expect("Failed Spi::read");
+            thread::sleep(lpc1114_wait);
+            let _ret = spi1_0.read( &mut read_data2 ).expect("Failed Spi::read");
+            thread::sleep(lpc1114_wait);
+
+            let sensor_val: u16 = ((read_data1[0] as u16) << 8 ) | read_data2[0] as u16;
+            println!("from lpc1114: {}", sensor_val);
+            let mut param = IR_sensor_clone.lock().unwrap();
+            *param = sensor_val;
         }
     });
     
@@ -200,7 +224,7 @@ fn main() {
         //save motor
         if motor1.abs() < 0.15 && motor2.abs() < 0.15 && motor3.abs() < 0.15 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
-        let motor :[i8; 3] = [(motor1*-50.0) as i8, (motor2*-50.0) as i8, (motor3*-50.0) as i8]; //should -100 to 100
+        let motor :[i8; 3] = [(motor1*100.0) as i8, (motor2*100.0) as i8, (motor3*100.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
         let cmd = generate_cmd(&motor, &mut cmd_str);
 
