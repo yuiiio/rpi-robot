@@ -119,9 +119,11 @@ fn main() {
     let IR_sensors_clone = Arc::clone(&IR_sensors);
 
     let _handle4 = thread::spawn(move || {
-        let lpc1114_wait = Duration::from_micros(10000);
+        //let lpc1114_wait = Duration::from_micros(10000);
         let mut spi1_0 = Spi::new( Bus::Spi1, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
         let write_data :Vec<u8> = vec![0x40];
+        let mut read_first_seg :Vec<u8> = vec![0];
+
         let mut read_data1_H :Vec<u8> = vec![0];
         let mut read_data1_L :Vec<u8> = vec![0];
         let mut read_data2_H :Vec<u8> = vec![0];
@@ -132,36 +134,33 @@ fn main() {
         let mut read_data4_L :Vec<u8> = vec![0];
         loop{
             let _ret = spi1_0.write( &write_data );
-            thread::sleep(lpc1114_wait);
+            //thread::sleep(lpc1114_wait);
+            let _ret = spi1_0.read( &mut read_first_seg ).expect("Failed Spi::read");
+            if read_first_seg[0] == 0x40 {
 
-            let _ret = spi1_0.read( &mut read_data1_H ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
-            let _ret = spi1_0.read( &mut read_data1_L ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
+                let _ret = spi1_0.read( &mut read_data1_H ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data1_L ).expect("Failed Spi::read");
 
-            let _ret = spi1_0.read( &mut read_data2_H ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
-            let _ret = spi1_0.read( &mut read_data2_L ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
+                let _ret = spi1_0.read( &mut read_data2_H ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data2_L ).expect("Failed Spi::read");
 
-            let _ret = spi1_0.read( &mut read_data3_H ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
-            let _ret = spi1_0.read( &mut read_data3_L ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
+                let _ret = spi1_0.read( &mut read_data3_H ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data3_L ).expect("Failed Spi::read");
 
-            let _ret = spi1_0.read( &mut read_data4_H ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
-            let _ret = spi1_0.read( &mut read_data4_L ).expect("Failed Spi::read");
-            thread::sleep(lpc1114_wait);
+                let _ret = spi1_0.read( &mut read_data4_H ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data4_L ).expect("Failed Spi::read");
 
-            let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
-            let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
-            let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
-            let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
-            let sensor_val = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
-            println!("from lpc1114: {:?}", sensor_val);
-            let mut param = IR_sensors_clone.lock().unwrap();
-            *param = sensor_val;
+                let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
+                let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
+                let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
+                let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
+                let sensor_val = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
+                println!("from lpc1114: {:?}", sensor_val);
+                let length: f32 = 1.0 / (sensor_val1 as f32).sqrt() * 300.0;
+                println!("sensor1..ball length if centerd: {}", length);
+                let mut param = IR_sensors_clone.lock().unwrap();
+                *param = sensor_val;
+            }
         }
     });
     
