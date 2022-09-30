@@ -124,12 +124,14 @@ fn main() {
     ];
     */
 
-    let IR_sensors :Arc<Mutex<[u16; 4]>> = Arc::new(Mutex::new([0; 4]));
-    let IR_sensors_clone = Arc::clone(&IR_sensors);
+    let BALL_pos_relative :Arc<Mutex<[i16; 2]>> = Arc::new(Mutex::new([0; 2]));
+    let BALL_pos_relative_clone = Arc::clone(&BALL_pos_relative);
 
     let _handle4 = thread::spawn(move || {
         //let lpc1114_wait = Duration::from_micros(10000);
         let mut spi1_0 = Spi::new( Bus::Spi1, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
+        let mut spi1_1 = Spi::new( Bus::Spi1, SlaveSelect::Ss1, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
+        let mut spi1_2 = Spi::new( Bus::Spi1, SlaveSelect::Ss2, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
         let write_data :Vec<u8> = vec![0x40];
         let mut read_first_seg :Vec<u8> = vec![0];
 
@@ -141,6 +143,11 @@ fn main() {
         let mut read_data3_L :Vec<u8> = vec![0];
         let mut read_data4_H :Vec<u8> = vec![0];
         let mut read_data4_L :Vec<u8> = vec![0];
+
+        let mut sensor_val_from_slave0 :[u16; 4] = [0; 4];
+        let mut sensor_val_from_slave1 :[u16; 4] = [0; 4];
+        let mut sensor_val_from_slave2 :[u16; 4] = [0; 4];
+
         loop{
             let _ret = spi1_0.write( &write_data );
             //thread::sleep(lpc1114_wait);
@@ -163,18 +170,74 @@ fn main() {
                 let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
                 let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
                 let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
-                let sensor_val = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
-                println!("from lpc1114: {:?}", sensor_val);
-                let sensor_val_r = [
-                    (1000.0 / (sensor_val[0] as f32).sqrt()),
-                    (1000.0 / (sensor_val[1] as f32).sqrt()),
-                    (1000.0 / (sensor_val[2] as f32).sqrt()),
-                    (1000.0 / (sensor_val[3] as f32).sqrt()),
-                ];
-                println!("r: {:?}", sensor_val_r);
-                let mut param = IR_sensors_clone.lock().unwrap();
-                *param = sensor_val;
+                sensor_val_from_slave0 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
             }
+
+            let _ret = spi1_1.write( &write_data );
+            //thread::sleep(lpc1114_wait);
+            let _ret = spi1_1.read( &mut read_first_seg ).expect("Failed Spi::read");
+            if read_first_seg[0] == 0x40 {
+
+                let _ret = spi1_1.read( &mut read_data1_H ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data1_L ).expect("Failed Spi::read");
+
+                let _ret = spi1_1.read( &mut read_data2_H ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data2_L ).expect("Failed Spi::read");
+
+                let _ret = spi1_1.read( &mut read_data3_H ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data3_L ).expect("Failed Spi::read");
+
+                let _ret = spi1_1.read( &mut read_data4_H ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data4_L ).expect("Failed Spi::read");
+
+                let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
+                let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
+                let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
+                let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
+                sensor_val_from_slave1 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
+            }
+
+            let _ret = spi1_2.write( &write_data );
+            //thread::sleep(lpc1114_wait);
+            let _ret = spi1_2.read( &mut read_first_seg ).expect("Failed Spi::read");
+            if read_first_seg[0] == 0x40 {
+
+                let _ret = spi1_2.read( &mut read_data1_H ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data1_L ).expect("Failed Spi::read");
+
+                let _ret = spi1_2.read( &mut read_data2_H ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data2_L ).expect("Failed Spi::read");
+
+                let _ret = spi1_2.read( &mut read_data3_H ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data3_L ).expect("Failed Spi::read");
+
+                let _ret = spi1_2.read( &mut read_data4_H ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data4_L ).expect("Failed Spi::read");
+
+                let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
+                let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
+                let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
+                let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
+                sensor_val_from_slave2 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
+            }
+            
+            println!("0:{:?}", sensor_val_from_slave0);
+            println!("1:{:?}", sensor_val_from_slave1);
+            println!("2:{:?}", sensor_val_from_slave2);
+
+            /*
+            let sensor_val_r = [
+                (1000.0 / (sensor_val[0] as f32).sqrt()),
+                (1000.0 / (sensor_val[1] as f32).sqrt()),
+                (1000.0 / (sensor_val[2] as f32).sqrt()),
+                (1000.0 / (sensor_val[3] as f32).sqrt()),
+            ];
+
+            let BALL_pos = ;
+            println!("BALL pos: {:?}", BALL_pos);
+            let mut param = BALL_pos_relative_clone.lock().unwrap();
+            *param = BALL_pos;
+            */
         }
     });
     
