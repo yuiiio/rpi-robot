@@ -59,8 +59,8 @@ fn main() {
     let mut error :[f64; 3] = [0.0, 0.0, 0.0];
     let mut integral :f64 = 0.0;
 
-    const KP :f64 = 0.7;
-    const KI :f64 = 100.0;
+    const KP :f64 = 0.6;
+    const KI :f64 = 10.0;
     const KD :f64 = 0.00003;
 
     let from_controller_params :Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
@@ -166,10 +166,10 @@ fn main() {
                 let sensor_val = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
                 println!("from lpc1114: {:?}", sensor_val);
                 let sensor_val_r = [
-                    (500.0 / (sensor_val[0] as f32).sqrt()),
-                    (500.0 / (sensor_val[1] as f32).sqrt()),
-                    (500.0 / (sensor_val[2] as f32).sqrt()),
-                    (500.0 / (sensor_val[3] as f32).sqrt()),
+                    (1000.0 / (sensor_val[0] as f32).sqrt()),
+                    (1000.0 / (sensor_val[1] as f32).sqrt()),
+                    (1000.0 / (sensor_val[2] as f32).sqrt()),
+                    (1000.0 / (sensor_val[3] as f32).sqrt()),
                 ];
                 println!("r: {:?}", sensor_val_r);
                 let mut param = IR_sensors_clone.lock().unwrap();
