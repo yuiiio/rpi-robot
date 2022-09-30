@@ -257,9 +257,11 @@ fn main() {
         motor3 = if motor3 >= 0.0 { (motor3 + 1.0).log2() } else { (motor3.abs() + 1.0).log2() * -1.0 };
         */
 
+        /*
         if preval[0] == 0.0 { motor1 += 0.05; }
         if preval[1] == 0.0 { motor2 += 0.05; }
         if preval[2] == 0.0 { motor3 += 0.05; }
+        */
 
         // clamp
         motor1 = motor1.clamp(-1.0, 1.0);
