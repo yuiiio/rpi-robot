@@ -114,6 +114,15 @@ fn main() {
             *param = val;
         }
     });
+    /*
+    const SENSORS_POS = [ //[pos(x, y), dir(max:2*pi)]
+        [()], // 1
+        [], // 2
+        [], // 3
+        [], // 4
+        //
+    ];
+    */
 
     let IR_sensors :Arc<Mutex<[u16; 4]>> = Arc::new(Mutex::new([0; 4]));
     let IR_sensors_clone = Arc::clone(&IR_sensors);
@@ -156,8 +165,13 @@ fn main() {
                 let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
                 let sensor_val = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
                 println!("from lpc1114: {:?}", sensor_val);
-                let length: f32 = 1.0 / (sensor_val1 as f32).sqrt() * 300.0;
-                println!("sensor1..ball length if centerd: {}", length);
+                let sensor_val_r = [
+                    (500.0 / (sensor_val[0] as f32).sqrt()),
+                    (500.0 / (sensor_val[1] as f32).sqrt()),
+                    (500.0 / (sensor_val[2] as f32).sqrt()),
+                    (500.0 / (sensor_val[3] as f32).sqrt()),
+                ];
+                println!("r: {:?}", sensor_val_r);
                 let mut param = IR_sensors_clone.lock().unwrap();
                 *param = sensor_val;
             }
@@ -198,6 +212,12 @@ fn main() {
         let mut motor2 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[1][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[1][1];
         let mut motor3 :f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[2][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[2][1];
 
+        let max_num_rev: f64 = 1.0 / ( motor1.max(motor2).max(motor3) );
+
+        motor1 = motor1 * max_num_rev;
+        motor2 = motor2 * max_num_rev;
+        motor3 = motor3 * max_num_rev;
+        
         motor1 = motor1 * power;
         motor2 = motor2 * power;
         motor3 = motor3 * power;
