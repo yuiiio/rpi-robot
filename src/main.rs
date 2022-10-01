@@ -1,5 +1,6 @@
 use serialport;
 use std::f64::consts::PI;
+use core::f64::MAX;
 use std::time::{Instant, Duration};
 use std::io;
 use std::sync::{Arc, Mutex};
@@ -67,6 +68,29 @@ fn circle_cross_point(circle1: [f64; 3], circle2: [f64; 3]) -> Option<CrossPoint
         return Option::Some(CrossPoint{ first, second });
     }
 
+}
+
+fn three_point_circle(point1: [f64; 2], point2: [f64; 2], point3: [f64; 2]) -> [f64; 3] // return
+                                                                                        // circle
+                                                                                        // x, y, r
+{
+    let x1: f64 = point1[0];
+    let y1: f64 = point1[1];
+    let x2: f64 = point2[0];
+    let y2: f64 = point2[1];
+    let x3: f64 = point3[0];
+    let y3: f64 = point3[1];
+
+    let a: f64 = 2.0 * ((x1 - x2)*(y1 - y3) - (x1 - x3)*(y1 - y2));
+    let c1: f64 = x2.powi(2) - x1.powi(2) + y2.powi(2) - y1.powi(2);
+    let c2: f64 = x3.powi(2) - x1.powi(2) + y3.powi(2) - y1.powi(2);
+
+    let xp: f64 = ((y1 - y2)*c2 - (y1 - y3)*c1) / a;
+    let yp: f64 = ((x1 - x3)*c1 - (x1 - x2)*c2) / a;
+
+    let r = ((xp - x1).powi(2) + (yp - y1).powi(2)).sqrt();
+
+    return [xp, yp, r];
 }
 
 fn main() {
@@ -170,7 +194,7 @@ fn main() {
         [5.0/(SQRT_3)   , 5.0           , 2.0*PI*330.0/360.0], // 11
     ];
 
-    let ball_pos_relative: Arc<Mutex<Option<[i16; 2]>>> = Arc::new(Mutex::new(Option::None));
+    let ball_pos_relative: Arc<Mutex<Option<[f64; 2]>>> = Arc::new(Mutex::new(Option::None));
     let ball_pos_relative_clone = Arc::clone(&ball_pos_relative);
 
     let _handle4 = thread::spawn(move || {
@@ -345,25 +369,24 @@ fn main() {
 
             // calc 3point-include circle radius in 8 pattern // 2^(3C2) = 8
             // choise minimum one and the circle center is ball pos
-            /*
-            let triple_point_circle; // 2^(3C2) = 8 circle
-            let minimum_circle_handle;
-            for i in 0..2 {
-                for j in 0..2 {
-                    for k in 0..2 {
+            let mut minimum_circle_r = MAX;
+            let mut ball_pos: [f64; 2] = [0.0 as f64, 0.0 as f64];
+
+            for i in [cross_point_a.first, cross_point_a.second] {
+                for j in [cross_point_b.first, cross_point_b.second] {
+                    for k in [cross_point_c.first, cross_point_c.second] {
+                        let circle_p: [f64; 3] = three_point_circle(i, j, k);
+                        if circle_p[2] < minimum_circle_r { //r
+                            minimum_circle_r = circle_p[2];
+                            ball_pos = [circle_p[0], circle_p[1]]; //x, y
+                        }
                     }
                 }
             }
-            */
 
+            let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
-            let mut ball_pos_option: Option<[i16; 2]> = Option::None;
-            let mut ball_pos: [i16; 2] = [0.0 as i16, 0.0 as i16];
-
-
-            //
-
-            if (ball_pos[0]^2 + ball_pos[1]^2) >= 200 { //ball dist
+            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)) >= 200.0 { //ball dist
                 // not found
                 ball_pos_option = Option::None;
                 println!("BALL not found (too long dist)");
