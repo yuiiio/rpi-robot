@@ -317,7 +317,7 @@ fn main() {
                 11 => [10, 11, 0],
                 _ => [max_sensor_num - 1 ,max_sensor_num, max_sensor_num + 1],
             };
-            println!("{:?}", three_sensor_point);
+            //println!("{:?}", three_sensor_point);
 
             let mut r_double: [f64; 3] = [0.0; 3];
             let mut r: [f64; 3] = [0.0; 3];
@@ -338,7 +338,7 @@ fn main() {
 
                     , r[i] ];
             }
-            println!("circles1: 2*r (dist when dir(ball-sensor).cos == 1): {}", circles[1][2] * 2.0);
+            //println!("circles1: 2*r (dist when dir(ball-sensor).cos == 1): {}", circles[1][2] * 2.0);
             //println!("circles1: pos: x:{}, y:{}", circles[1][0], circles[1][1]);
 
             let cross_point_a = match circle_cross_point(circles[0], circles[1])
@@ -404,11 +404,11 @@ fn main() {
             if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 120.0 { //ball dist
                 // not found
                 ball_pos_option = Option::None;
-                println!("BALL not found (too long dist)");
+                //println!("BALL not found (too long dist)");
             }  else {
                 ball_pos_option = Option::Some([ball_pos[0], ball_pos[1]]);
             }
-            println!("ball_pos_option: {:?}", ball_pos_option);
+            //println!("ball_pos_option: {:?}", ball_pos_option);
             let mut param = ball_pos_relative_clone.lock().unwrap();
             *param = ball_pos_option;
         }
@@ -437,13 +437,26 @@ fn main() {
         let power: f64 = power_u8 as f64 / 255.0 as f64;
         */
 
+        let ball_pos: Option<[f64; 2]> = *(ball_pos_relative.lock().unwrap());
+
+        let mut direction_sceta_dig: f64 = 0.0;
+        let mut power: f64 = 0.0;
+
+        match ball_pos {
+            Some([x, y]) => { 
+                direction_sceta_dig = (2.0 * PI) - x.atan2(y);
+                power = 1.0;//(x.powi(2) + y.powi(2)).sqrt() / 120.0;
+            },
+            None => power = 0.0,
+        }
+
         let robot_dir: u16 = 270; //controll
 
         let sensor_dir: u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
         let sensor_dir_diff: i16 = sensor_dir as i16 - robot_dir as i16;
         let mod_robot_dir: u16 = if sensor_dir_diff < 0 { (360 + sensor_dir_diff) as u16 } else { sensor_dir_diff as u16 }; //centelyzed by robot_dir
 
-        let direction_sceta_dig: f64 = (direction_sceta as f64) / (360 as f64) * 2.0 * PI;
+        //let direction_sceta_dig: f64 = (direction_sceta as f64) / (360 as f64) * 2.0 * PI;
         let direction_sceta_dig_x_y: [f64; 2] = [direction_sceta_dig.cos(), direction_sceta_dig.sin()];
 
         let mut motor1: f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[0][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[0][1];
