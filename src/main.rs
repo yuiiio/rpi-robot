@@ -124,6 +124,7 @@ fn main() {
     const KI: f64 = 10.0;
     const KD: f64 = 0.00003;
 
+    /*
     let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
     let from_controller_params_clone = Arc::clone(&from_controller_params);
 
@@ -138,6 +139,7 @@ fn main() {
             *params = (direction_sceta, power_u8);
         }
     });
+    */
 
     let from_sensor_dir: Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
     let from_sensor_dir_clone = Arc::clone(&from_sensor_dir);
@@ -399,7 +401,7 @@ fn main() {
 
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
-            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 200.0 { //ball dist
+            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 120.0 { //ball dist
                 // not found
                 ball_pos_option = Option::None;
                 println!("BALL not found (too long dist)");
@@ -430,8 +432,10 @@ fn main() {
         let pin_val = *(program_switch.lock().unwrap());
         if pin_val == false { break 'outer; }
 
+        /*
         let (direction_sceta, power_u8) = *(from_controller_params.lock().unwrap());
         let power: f64 = power_u8 as f64 / 255.0 as f64;
+        */
 
         let robot_dir: u16 = 270; //controll
 
