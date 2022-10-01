@@ -114,15 +114,25 @@ fn main() {
             *param = val;
         }
     });
-    /*
-    const SENSORS_POS = [ //[pos(x, y), dir(max:2*pi)]
-        [()], // 1
-        [], // 2
-        [], // 3
-        [], // 4
-        //
+   
+    const SQRT_3: f64 = 1.73205080757;
+    const CIRCLE_SENSORS_POS: [[f64; 3]; 12] = [ //[sensor_pos(x, y), sensor_dir(max:2*pi)]
+        [0.0            , 5.0           , 2.0*PI*0.0/360.0], // 0
+
+        [-5.0/(SQRT_3)  , 5.0           , 2.0*PI*30.0/360.0], // 1
+        [-5.0*(SQRT_3)  , 5.0           , 2.0*PI*60.0/360.0], // 2
+        [-10.0          , 0.0           , 2.0*PI*90.0/360.0], // 3
+        [-5.0*(SQRT_3)  , -5.0          , 2.0*PI*120.0/360.0], // 4
+        [-5.0           , -5.0*(SQRT_3) , 2.0*PI*150.0/360.0], // 5
+
+        [0.0            , -10.0         , 2.0*PI*180.0/360.0], // 6
+
+        [5.0            , -5.0*(SQRT_3) , 2.0*PI*210.0/360.0], // 7
+        [5.0*(SQRT_3)   , -5.0          , 2.0*PI*240.0/360.0], // 8
+        [10.0           , 0.0           , 2.0*PI*270.0/360.0], // 9
+        [5.0*(SQRT_3)   , 5.0           , 2.0*PI*300.0/360.0], // 10
+        [5.0/(SQRT_3)   , 5.0           , 2.0*PI*330.0/360.0], // 11
     ];
-    */
 
     let BALL_pos_relative: Arc<Mutex<[i16; 2]>> = Arc::new(Mutex::new([0; 2]));
     let BALL_pos_relative_clone = Arc::clone(&BALL_pos_relative);
@@ -220,11 +230,6 @@ fn main() {
                 let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
                 sensor_val_from_slave2 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
             }
-            /* 
-            println!("0:{:?}", sensor_val_from_slave0);
-            println!("1:{:?}", sensor_val_from_slave1);
-            println!("2:{:?}", sensor_val_from_slave2);
-            */
 
             let sensor_val_circle = [
                 sensor_val_from_slave0[0], sensor_val_from_slave1[0], sensor_val_from_slave2[0],
@@ -243,7 +248,15 @@ fn main() {
                 }
             }
 
-            println!("max_sensor_num: {}", max_sensor_num);
+            let three_sensor_point: (usize, usize, usize) = match max_sensor_num 
+            {
+                0 => (11, 0, 1),
+                11 => (10, 11, 0),
+                _ => (max_sensor_num - 1 ,max_sensor_num, max_sensor_num + 1),
+            };
+
+            println!("{:?}", three_sensor_point);
+
 
             /*
             let sensor_val_r = [
