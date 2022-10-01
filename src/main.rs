@@ -57,13 +57,14 @@ fn circle_cross_point(circle1: [f64; 3], circle2: [f64; 3]) -> Option<CrossPoint
     if d < 0.0 {
         return Option::None;
     } else {
+        let d_sqrt: f64 = d.sqrt();
         let first: [f64; 2] = [
-            (a*x1 + y1*d.sqrt()) / (x1_pow2 + y1_pow2),
-            (a*y1 - x1*d.sqrt()) / (x1_pow2 + y1_pow2),
+            ((a*x1 + y1*d_sqrt) / (x1_pow2 + y1_pow2) + circle1[0]),
+            ((a*y1 - x1*d_sqrt) / (x1_pow2 + y1_pow2) + circle1[1]),
         ];
         let second: [f64; 2] = [
-            (a*x1 - y1*d.sqrt()) / (x1_pow2 + y1_pow2),
-            (a*y1 + x1*d.sqrt()) / (x1_pow2 + y1_pow2),
+            ((a*x1 - y1*d_sqrt) / (x1_pow2 + y1_pow2) + circle1[0]),
+            ((a*y1 + x1*d_sqrt) / (x1_pow2 + y1_pow2) + circle1[1]),
         ];
         return Option::Some(CrossPoint{ first, second });
     }
@@ -336,6 +337,7 @@ fn main() {
                     , r[i] ];
             }
             println!("circles1: 2*r (dist when dir(ball-sensor).cos == 1): {}", circles[1][2] * 2.0);
+            //println!("circles1: pos: x:{}, y:{}", circles[1][0], circles[1][1]);
 
             let cross_point_a = match circle_cross_point(circles[0], circles[1])
             {
@@ -386,7 +388,7 @@ fn main() {
 
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
-            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)) >= 200.0 { //ball dist
+            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 200.0 { //ball dist
                 // not found
                 ball_pos_option = Option::None;
                 println!("BALL not found (too long dist)");
