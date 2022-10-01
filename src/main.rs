@@ -248,15 +248,6 @@ fn main() {
                 }
             }
 
-            if max_sensor_val <= 60 {
-                // not found
-                let BALL_pos: Option<[i16; 2]> = Option::None;
-                println!("BALL pos: {:?}", BALL_pos);
-                let mut param = BALL_pos_relative_clone.lock().unwrap();
-                *param = BALL_pos;
-                continue;
-            }
-
             let three_sensor_point: [usize; 3] = match max_sensor_num 
             {
                 0 => [11, 0, 1],
@@ -284,6 +275,7 @@ fn main() {
 
                     , R[i] ];
             }
+            println!("circles: {:?}", circles);
 
             struct cross_point {
                 first: [f64; 2], // x, y
@@ -300,12 +292,22 @@ fn main() {
             // choise minimum one and the circle center is ball pos
 
 
-            /*
-            let BALL_pos = ;
-            println!("BALL pos: {:?}", BALL_pos);
+            let mut BALL_POS: Option<[i16; 2]> = Option::None;
+            let mut ball_pos: [i16; 2] = [0.0 as i16, 0.0 as i16];
+
+
+            //
+
+            if (ball_pos[0]^2 + ball_pos[1]^2) >= 200 { //ball dist
+                // not found
+                BALL_POS = Option::None;
+                println!("BALL not found (too long dist)");
+            }  else {
+                BALL_POS = Option::Some([ball_pos[0], ball_pos[1]]);
+            }
+            println!("BALL_POS: {:?}", BALL_POS);
             let mut param = BALL_pos_relative_clone.lock().unwrap();
-            *param = BALL_pos;
-            */
+            *param = BALL_POS;
         }
     });
     
