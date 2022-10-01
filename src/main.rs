@@ -134,7 +134,7 @@ fn main() {
         [5.0/(SQRT_3)   , 5.0           , 2.0*PI*330.0/360.0], // 11
     ];
 
-    let BALL_pos_relative: Arc<Mutex<[i16; 2]>> = Arc::new(Mutex::new([0; 2]));
+    let BALL_pos_relative: Arc<Mutex<Option<[i16; 2]>>> = Arc::new(Mutex::new(Option::None));
     let BALL_pos_relative_clone = Arc::clone(&BALL_pos_relative);
 
     let _handle4 = thread::spawn(move || {
@@ -248,24 +248,59 @@ fn main() {
                 }
             }
 
-            let three_sensor_point: (usize, usize, usize) = match max_sensor_num 
-            {
-                0 => (11, 0, 1),
-                11 => (10, 11, 0),
-                _ => (max_sensor_num - 1 ,max_sensor_num, max_sensor_num + 1),
-            };
+            if max_sensor_val <= 60 {
+                // not found
+                let BALL_pos: Option<[i16; 2]> = Option::None;
+                println!("BALL pos: {:?}", BALL_pos);
+                let mut param = BALL_pos_relative_clone.lock().unwrap();
+                *param = BALL_pos;
+                continue;
+            }
 
+            let three_sensor_point: [usize; 3] = match max_sensor_num 
+            {
+                0 => [11, 0, 1],
+                11 => [10, 11, 0],
+                _ => [max_sensor_num - 1 ,max_sensor_num, max_sensor_num + 1],
+            };
             println!("{:?}", three_sensor_point);
+
+            let mut R_double: [f64; 3] = [0.0; 3];
+            let mut R: [f64; 3] = [0.0; 3];
+
+            let mut circles: [[f64; 3]; 3] = [[0.0, 0.0, 0.0]; 3]; // x, y, r
+
+            for i in 0..3 {
+                R_double[i] = 1000.0 / ((sensor_val_circle[three_sensor_point[i]] as f64).sqrt());
+                R[i] = R_double[i] / 2.0;
+                circles[i] = [
+                    CIRCLE_SENSORS_POS[three_sensor_point[i]][0] // sensor_pos_x
+                        +
+                        (CIRCLE_SENSORS_POS[three_sensor_point[i]][2].sin() * -1.0 * R[i]) // sensor_dir.sin() * -1.0 * R
+                    ,
+                    CIRCLE_SENSORS_POS[three_sensor_point[i]][1] // sensor_pos_y
+                        +
+                        (CIRCLE_SENSORS_POS[three_sensor_point[i]][2].cos() * R[i]) // sensor_dir.cos() * R
+
+                    , R[i] ];
+            }
+
+            struct cross_point {
+                first: [f64; 2], // x, y
+                second: [f64; 2], // x, y
+            }
+
+            /*
+            let cross_point_A = circle_cross_point(circles[0], circles[1]);
+            let cross_point_B = circle_cross_point(circles[1], circles[2]);
+            let cross_point_C = circle_cross_point(circles[2], circles[0]);
+            */
+
+            // calc 3point-include circle radius in 8 pattern // 2^(3C2) = 8
+            // choise minimum one and the circle center is ball pos
 
 
             /*
-            let sensor_val_r = [
-                (1000.0 / (sensor_val[0] as f32).sqrt()),
-                (1000.0 / (sensor_val[1] as f32).sqrt()),
-                (1000.0 / (sensor_val[2] as f32).sqrt()),
-                (1000.0 / (sensor_val[3] as f32).sqrt()),
-            ];
-
             let BALL_pos = ;
             println!("BALL pos: {:?}", BALL_pos);
             let mut param = BALL_pos_relative_clone.lock().unwrap();
