@@ -220,10 +220,11 @@ fn main() {
                 let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
                 sensor_val_from_slave2 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
             }
-            
+            /* 
             println!("0:{:?}", sensor_val_from_slave0);
             println!("1:{:?}", sensor_val_from_slave1);
             println!("2:{:?}", sensor_val_from_slave2);
+            */
 
             let sensor_val_circle = [
                 sensor_val_from_slave0[0], sensor_val_from_slave1[0], sensor_val_from_slave2[0],
@@ -231,10 +232,18 @@ fn main() {
                 sensor_val_from_slave0[2], sensor_val_from_slave1[2], sensor_val_from_slave2[2],
                 sensor_val_from_slave0[3], sensor_val_from_slave1[3], sensor_val_from_slave2[3],
             ];
+            // not need sort, max is enough
+            let mut max_sensor_num: usize = 0;
+            let mut max_sensor_val: u16 = 0;
+            for i in 0..sensor_val_circle.len()
+            {
+                if max_sensor_val < sensor_val_circle[i] {
+                    max_sensor_val = sensor_val_circle[i];
+                    max_sensor_num = i;
+                }
+            }
 
-            let sensor_val_circle_sort_handle :uint = [];
-
-            
+            println!("max_sensor_num: {}", max_sensor_num);
 
             /*
             let sensor_val_r = [
