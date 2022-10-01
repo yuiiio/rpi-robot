@@ -33,6 +33,42 @@ fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
     return &cmd;
 }
 
+struct CrossPoint {
+    first: [f64; 2], // x, y
+    second: [f64; 2], // x, y
+}
+
+fn circle_cross_point(circle1: [f64; 3], circle2: [f64; 3]) -> Option<CrossPoint>
+{
+    let x1: f64 = circle2[0] - circle1[0];
+    let y1: f64 = circle2[1] - circle1[1];
+    let r1: f64 = circle1[2];
+    let r2: f64 = circle2[2];
+
+    let x1_pow2: f64 = x1.powi(2);
+    let y1_pow2: f64 = y1.powi(2);
+    let r1_pow2: f64 = r1.powi(2);
+    let r2_pow2: f64 = r2.powi(2);
+
+    let a: f64 = (x1_pow2 + y1_pow2 + r1_pow2 - r2_pow2 ) / 2.0;
+
+    let d: f64 = ((x1_pow2 + y1_pow2)*r1_pow2) - a.powi(2);
+    if d < 0.0 {
+        return Option::None;
+    } else {
+        let first: [f64; 2] = [
+            (a*x1 + y1*d.sqrt()) / (x1_pow2 + y1_pow2),
+            (a*y1 - x1*d.sqrt()) / (x1_pow2 + y1_pow2),
+        ];
+        let second: [f64; 2] = [
+            (a*x1 - y1*d.sqrt()) / (x1_pow2 + y1_pow2),
+            (a*y1 + x1*d.sqrt()) / (x1_pow2 + y1_pow2),
+        ];
+        return Option::Some(CrossPoint{ first, second });
+    }
+
+}
+
 fn main() {
     let mut port = serialport::new("/dev/ttyAMA0", 115200)
         .stop_bits(serialport::StopBits::One)
@@ -52,7 +88,7 @@ fn main() {
                                         [MOTOR2_DIR.cos(), MOTOR2_DIR.sin()],
                                         [MOTOR3_DIR.cos(), MOTOR3_DIR.sin()]];
                                         
-    let mut preval: [f64; 3] = [0.0, 0.0, 0.0];
+    //let mut preval: [f64; 3] = [0.0, 0.0, 0.0];
     //used by PID
     let mut last_command_time: f64 = 0.0;
 
@@ -134,8 +170,8 @@ fn main() {
         [5.0/(SQRT_3)   , 5.0           , 2.0*PI*330.0/360.0], // 11
     ];
 
-    let BALL_pos_relative: Arc<Mutex<Option<[i16; 2]>>> = Arc::new(Mutex::new(Option::None));
-    let BALL_pos_relative_clone = Arc::clone(&BALL_pos_relative);
+    let ball_pos_relative: Arc<Mutex<Option<[i16; 2]>>> = Arc::new(Mutex::new(Option::None));
+    let ball_pos_relative_clone = Arc::clone(&ball_pos_relative);
 
     let _handle4 = thread::spawn(move || {
         //let lpc1114_wait = Duration::from_micros(10000);
@@ -145,14 +181,14 @@ fn main() {
         let write_data :Vec<u8> = vec![0x40];
         let mut read_first_seg :Vec<u8> = vec![0];
 
-        let mut read_data1_H: Vec<u8> = vec![0];
-        let mut read_data1_L: Vec<u8> = vec![0];
-        let mut read_data2_H: Vec<u8> = vec![0];
-        let mut read_data2_L: Vec<u8> = vec![0];
-        let mut read_data3_H: Vec<u8> = vec![0];
-        let mut read_data3_L: Vec<u8> = vec![0];
-        let mut read_data4_H: Vec<u8> = vec![0];
-        let mut read_data4_L: Vec<u8> = vec![0];
+        let mut read_data1_h: Vec<u8> = vec![0];
+        let mut read_data1_l: Vec<u8> = vec![0];
+        let mut read_data2_h: Vec<u8> = vec![0];
+        let mut read_data2_l: Vec<u8> = vec![0];
+        let mut read_data3_h: Vec<u8> = vec![0];
+        let mut read_data3_l: Vec<u8> = vec![0];
+        let mut read_data4_h: Vec<u8> = vec![0];
+        let mut read_data4_l: Vec<u8> = vec![0];
 
         let mut sensor_val_from_slave0 :[u16; 4] = [0; 4];
         let mut sensor_val_from_slave1 :[u16; 4] = [0; 4];
@@ -164,22 +200,22 @@ fn main() {
             let _ret = spi1_0.read( &mut read_first_seg ).expect("Failed Spi::read");
             if read_first_seg[0] == 0x40 {
 
-                let _ret = spi1_0.read( &mut read_data1_H ).expect("Failed Spi::read");
-                let _ret = spi1_0.read( &mut read_data1_L ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data1_h ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data1_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_0.read( &mut read_data2_H ).expect("Failed Spi::read");
-                let _ret = spi1_0.read( &mut read_data2_L ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data2_h ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data2_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_0.read( &mut read_data3_H ).expect("Failed Spi::read");
-                let _ret = spi1_0.read( &mut read_data3_L ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data3_h ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data3_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_0.read( &mut read_data4_H ).expect("Failed Spi::read");
-                let _ret = spi1_0.read( &mut read_data4_L ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data4_h ).expect("Failed Spi::read");
+                let _ret = spi1_0.read( &mut read_data4_l ).expect("Failed Spi::read");
 
-                let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
-                let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
-                let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
-                let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
+                let sensor_val1: u16 = ((read_data1_h[0] as u16) << 8 ) | read_data1_l[0] as u16;
+                let sensor_val2: u16 = ((read_data2_h[0] as u16) << 8 ) | read_data2_l[0] as u16;
+                let sensor_val3: u16 = ((read_data3_h[0] as u16) << 8 ) | read_data3_l[0] as u16;
+                let sensor_val4: u16 = ((read_data4_h[0] as u16) << 8 ) | read_data4_l[0] as u16;
                 sensor_val_from_slave0 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
             }
 
@@ -188,22 +224,22 @@ fn main() {
             let _ret = spi1_1.read( &mut read_first_seg ).expect("Failed Spi::read");
             if read_first_seg[0] == 0x40 {
 
-                let _ret = spi1_1.read( &mut read_data1_H ).expect("Failed Spi::read");
-                let _ret = spi1_1.read( &mut read_data1_L ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data1_h ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data1_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_1.read( &mut read_data2_H ).expect("Failed Spi::read");
-                let _ret = spi1_1.read( &mut read_data2_L ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data2_h ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data2_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_1.read( &mut read_data3_H ).expect("Failed Spi::read");
-                let _ret = spi1_1.read( &mut read_data3_L ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data3_h ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data3_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_1.read( &mut read_data4_H ).expect("Failed Spi::read");
-                let _ret = spi1_1.read( &mut read_data4_L ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data4_h ).expect("Failed Spi::read");
+                let _ret = spi1_1.read( &mut read_data4_l ).expect("Failed Spi::read");
 
-                let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
-                let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
-                let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
-                let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
+                let sensor_val1: u16 = ((read_data1_h[0] as u16) << 8 ) | read_data1_l[0] as u16;
+                let sensor_val2: u16 = ((read_data2_h[0] as u16) << 8 ) | read_data2_l[0] as u16;
+                let sensor_val3: u16 = ((read_data3_h[0] as u16) << 8 ) | read_data3_l[0] as u16;
+                let sensor_val4: u16 = ((read_data4_h[0] as u16) << 8 ) | read_data4_l[0] as u16;
                 sensor_val_from_slave1 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
             }
 
@@ -212,22 +248,22 @@ fn main() {
             let _ret = spi1_2.read( &mut read_first_seg ).expect("Failed Spi::read");
             if read_first_seg[0] == 0x40 {
 
-                let _ret = spi1_2.read( &mut read_data1_H ).expect("Failed Spi::read");
-                let _ret = spi1_2.read( &mut read_data1_L ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data1_h ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data1_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_2.read( &mut read_data2_H ).expect("Failed Spi::read");
-                let _ret = spi1_2.read( &mut read_data2_L ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data2_h ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data2_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_2.read( &mut read_data3_H ).expect("Failed Spi::read");
-                let _ret = spi1_2.read( &mut read_data3_L ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data3_h ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data3_l ).expect("Failed Spi::read");
 
-                let _ret = spi1_2.read( &mut read_data4_H ).expect("Failed Spi::read");
-                let _ret = spi1_2.read( &mut read_data4_L ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data4_h ).expect("Failed Spi::read");
+                let _ret = spi1_2.read( &mut read_data4_l ).expect("Failed Spi::read");
 
-                let sensor_val1: u16 = ((read_data1_H[0] as u16) << 8 ) | read_data1_L[0] as u16;
-                let sensor_val2: u16 = ((read_data2_H[0] as u16) << 8 ) | read_data2_L[0] as u16;
-                let sensor_val3: u16 = ((read_data3_H[0] as u16) << 8 ) | read_data3_L[0] as u16;
-                let sensor_val4: u16 = ((read_data4_H[0] as u16) << 8 ) | read_data4_L[0] as u16;
+                let sensor_val1: u16 = ((read_data1_h[0] as u16) << 8 ) | read_data1_l[0] as u16;
+                let sensor_val2: u16 = ((read_data2_h[0] as u16) << 8 ) | read_data2_l[0] as u16;
+                let sensor_val3: u16 = ((read_data3_h[0] as u16) << 8 ) | read_data3_l[0] as u16;
+                let sensor_val4: u16 = ((read_data4_h[0] as u16) << 8 ) | read_data4_l[0] as u16;
                 sensor_val_from_slave2 = [sensor_val1, sensor_val2, sensor_val3, sensor_val4];
             }
 
@@ -256,43 +292,72 @@ fn main() {
             };
             println!("{:?}", three_sensor_point);
 
-            let mut R_double: [f64; 3] = [0.0; 3];
-            let mut R: [f64; 3] = [0.0; 3];
+            let mut r_double: [f64; 3] = [0.0; 3];
+            let mut r: [f64; 3] = [0.0; 3];
 
             let mut circles: [[f64; 3]; 3] = [[0.0, 0.0, 0.0]; 3]; // x, y, r
 
             for i in 0..3 {
-                R_double[i] = 1000.0 / ((sensor_val_circle[three_sensor_point[i]] as f64).sqrt());
-                R[i] = R_double[i] / 2.0;
+                r_double[i] = 1000.0 / ((sensor_val_circle[three_sensor_point[i]] as f64).sqrt());
+                r[i] = r_double[i] / 2.0;
                 circles[i] = [
                     CIRCLE_SENSORS_POS[three_sensor_point[i]][0] // sensor_pos_x
                         +
-                        (CIRCLE_SENSORS_POS[three_sensor_point[i]][2].sin() * -1.0 * R[i]) // sensor_dir.sin() * -1.0 * R
+                        (CIRCLE_SENSORS_POS[three_sensor_point[i]][2].sin() * -1.0 * r[i]) // sensor_dir.sin() * -1.0 * r
                     ,
                     CIRCLE_SENSORS_POS[three_sensor_point[i]][1] // sensor_pos_y
                         +
-                        (CIRCLE_SENSORS_POS[three_sensor_point[i]][2].cos() * R[i]) // sensor_dir.cos() * R
+                        (CIRCLE_SENSORS_POS[three_sensor_point[i]][2].cos() * r[i]) // sensor_dir.cos() * r
 
-                    , R[i] ];
+                    , r[i] ];
             }
-            println!("circles: {:?}", circles);
+            println!("circles1: 2*r (dist when dir(ball-sensor).cos == 1): {}", circles[1][2] * 2.0);
 
-            struct cross_point {
-                first: [f64; 2], // x, y
-                second: [f64; 2], // x, y
-            }
+            let cross_point_a = match circle_cross_point(circles[0], circles[1])
+            {
+                Some(cross_point) => cross_point,
+                None => { // no cross point , then return half point both circle center
+                    let half_point_x: f64 = (circles[0][0] + circles[1][0]) / 2.0;
+                    let half_point_y: f64 = (circles[0][1] + circles[1][1]) / 2.0;
+                    CrossPoint { first: [half_point_x, half_point_y], second: [half_point_x, half_point_y] } // return first second same point
+                },
+            };
 
-            /*
-            let cross_point_A = circle_cross_point(circles[0], circles[1]);
-            let cross_point_B = circle_cross_point(circles[1], circles[2]);
-            let cross_point_C = circle_cross_point(circles[2], circles[0]);
-            */
+            let cross_point_b = match circle_cross_point(circles[1], circles[2])
+            {
+                Some(cross_point) => cross_point,
+                None => { // no cross point , then return half point both circle center
+                    let half_point_x: f64 = (circles[1][0] + circles[2][0]) / 2.0;
+                    let half_point_y: f64 = (circles[1][1] + circles[2][1]) / 2.0;
+                    CrossPoint { first: [half_point_x, half_point_y], second: [half_point_x, half_point_y] } // return first second same point
+                },
+            };
+
+            let cross_point_c = match circle_cross_point(circles[2], circles[0])
+            {
+                Some(cross_point) => cross_point,
+                None => { // no cross point , then return half point both circle center
+                    let half_point_x: f64 = (circles[2][0] + circles[0][0]) / 2.0;
+                    let half_point_y: f64 = (circles[2][1] + circles[0][1]) / 2.0;
+                    CrossPoint { first: [half_point_x, half_point_y], second: [half_point_x, half_point_y] } // return first second same point
+                },
+            };
 
             // calc 3point-include circle radius in 8 pattern // 2^(3C2) = 8
             // choise minimum one and the circle center is ball pos
+            /*
+            let triple_point_circle; // 2^(3C2) = 8 circle
+            let minimum_circle_handle;
+            for i in 0..2 {
+                for j in 0..2 {
+                    for k in 0..2 {
+                    }
+                }
+            }
+            */
 
 
-            let mut BALL_POS: Option<[i16; 2]> = Option::None;
+            let mut ball_pos_option: Option<[i16; 2]> = Option::None;
             let mut ball_pos: [i16; 2] = [0.0 as i16, 0.0 as i16];
 
 
@@ -300,14 +365,14 @@ fn main() {
 
             if (ball_pos[0]^2 + ball_pos[1]^2) >= 200 { //ball dist
                 // not found
-                BALL_POS = Option::None;
+                ball_pos_option = Option::None;
                 println!("BALL not found (too long dist)");
             }  else {
-                BALL_POS = Option::Some([ball_pos[0], ball_pos[1]]);
+                ball_pos_option = Option::Some([ball_pos[0], ball_pos[1]]);
             }
-            println!("BALL_POS: {:?}", BALL_POS);
-            let mut param = BALL_pos_relative_clone.lock().unwrap();
-            *param = BALL_POS;
+            println!("ball_pos_option: {:?}", ball_pos_option);
+            let mut param = ball_pos_relative_clone.lock().unwrap();
+            *param = ball_pos_option;
         }
     });
     
@@ -413,7 +478,7 @@ fn main() {
         port.write(cmd).unwrap();
         port.flush().unwrap();
 
-        preval = [ motor1, motor2, motor3 ];
+        //preval = [ motor1, motor2, motor3 ];
         // used by PID
         last_command_time = now.elapsed().as_secs_f64();
     }
