@@ -378,24 +378,24 @@ fn main() {
             // too.
             // so, can't detect long dist case.
             // now we try to choise most long dist one instead.
-            //let mut minimum_circle_r = MAX;
-            let mut most_long_dist = 0.0;
+            let mut minimum_circle_r = MAX;
+            //let mut most_long_dist = 0.0;
             let mut ball_pos: [f64; 2] = [0.0 as f64, 0.0 as f64];
 
             for i in [cross_point_a.first, cross_point_a.second] {
                 for j in [cross_point_b.first, cross_point_b.second] {
                     for k in [cross_point_c.first, cross_point_c.second] {
                         let circle_p: [f64; 3] = three_point_circle(i, j, k);
-                        /*
                         if circle_p[2] < minimum_circle_r { //r
                             minimum_circle_r = circle_p[2];
                             ball_pos = [circle_p[0], circle_p[1]]; //x, y
                         }
-                        */
+                        /*
                         if most_long_dist < (circle_p[0].powi(2) * circle_p[1].powi(2)).sqrt() {
                             most_long_dist = (circle_p[0].powi(2) * circle_p[1].powi(2)).sqrt();
                             ball_pos = [circle_p[0], circle_p[1]]; //x, y
                         }
+                        */
                     }
                 }
             }
