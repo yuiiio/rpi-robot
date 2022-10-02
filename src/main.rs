@@ -428,6 +428,7 @@ fn main() {
     let machine_pos: Arc<Mutex<[i32; 2]>> = Arc::new(Mutex::new([0; 2]));
     let machine_pos_clone = Arc::clone(&machine_pos);
 
+    // usb-mouse
     let _handle5 = thread::spawn(move || {
         let mut device = Device::open("/dev/input/by-id/usb-Avago_USB_LaserStream_TM__Mouse-event-mouse").unwrap();
         let mut val :[i32; 2] = [0; 2];
@@ -436,8 +437,8 @@ fn main() {
                 match ev.kind() {
                     InputEventKind::RelAxis(axis) => {
                         match axis {
-                            RelativeAxisType::REL_X => val[0] = ev.value(),
-                            RelativeAxisType::REL_Y => val[1] = ev.value(),
+                            RelativeAxisType::REL_X => val[1] += ev.value(),
+                            RelativeAxisType::REL_Y => val[0] += ev.value(),
                             _ => (),
                         }
                     },
@@ -445,7 +446,9 @@ fn main() {
                 }
             }
 
-            println!("{:?}", val);
+            //println!("{:?}", val);
+            let mut param = machine_pos_clone.lock().unwrap();
+            *param = val;
         }
     });
     
@@ -463,6 +466,7 @@ fn main() {
 
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
+    // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
         if pin_val == false { break 'outer; }
@@ -473,6 +477,10 @@ fn main() {
         */
 
         let ball_pos: Option<[f64; 2]> = *(ball_pos_relative.lock().unwrap());
+
+        let machine_pos: [i32; 2] = *(machine_pos.lock().unwrap());
+        let machine_pos: [f64; 2] = [machine_pos[0] as f64 * 0.01, machine_pos[1] as f64 * 0.01];
+        //println!("{:?}", machine_pos);
 
         let mut direction_sceta_dig: f64 = 0.0;
         let mut power: f64 = 0.0;
