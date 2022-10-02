@@ -222,8 +222,6 @@ fn main() {
         let mut sensor_val_from_slave1: [u16; 4] = [0; 4];
         let mut sensor_val_from_slave2: [u16; 4] = [0; 4];
 
-        let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
-
         loop{
             let _ret = spi1_0.write( &write_data );
             //thread::sleep(lpc1114_wait);
@@ -402,14 +400,6 @@ fn main() {
                 }
             }
 
-            ball_pos = [ // three times average
-                (previous_ball_pos[0][0] + previous_ball_pos[1][0] + ball_pos[0]) / 3.0,
-                (previous_ball_pos[0][1] + previous_ball_pos[1][1] + ball_pos[1]) / 3.0,
-            ];
-
-            previous_ball_pos[0] = previous_ball_pos[1];
-            previous_ball_pos[1] = ball_pos;
-
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
             if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 100.0 { //ball dist
@@ -466,6 +456,8 @@ fn main() {
 
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
+
+    let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
     // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
@@ -478,6 +470,7 @@ fn main() {
 
         let ball_pos: Option<[f64; 2]> = *(ball_pos_relative.lock().unwrap());
 
+
         let machine_pos: [i32; 2] = *(machine_pos.lock().unwrap());
         let machine_pos: [f64; 2] = [machine_pos[0] as f64 * 0.01, machine_pos[1] as f64 * 0.01];
         //println!("{:?}", machine_pos);
@@ -487,8 +480,15 @@ fn main() {
 
         match ball_pos {
             Some([x, y]) => { 
-                direction_sceta_dig = (2.0 * PI) - x.atan2(y);
-                power = 0.6;// (x.powi(2) + y.powi(2)).sqrt() / 100.0;
+                let ball_pos_now: [f64; 2] = [ // three times average
+                    (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
+                    (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
+                ];
+
+                previous_ball_pos[0] = previous_ball_pos[1];
+                previous_ball_pos[1] = ball_pos_now;
+                direction_sceta_dig = (2.0 * PI) - ball_pos_now[0].atan2(ball_pos_now[1]);
+                power = 0.6;// (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt() / 100.0;
             },
             None => power = 0.0,
         }
