@@ -120,8 +120,8 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.6;
-    const KI: f64 = 10.0;
+    const KP: f64 = 0.4;
+    const KI: f64 = 0.0;//10.0;
     const KD: f64 = 0.00003;
 
     /*
@@ -401,7 +401,7 @@ fn main() {
 
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
-            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 120.0 { //ball dist
+            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 100.0 { //ball dist
                 // not found
                 ball_pos_option = Option::None;
                 //println!("BALL not found (too long dist)");
@@ -445,7 +445,7 @@ fn main() {
         match ball_pos {
             Some([x, y]) => { 
                 direction_sceta_dig = (2.0 * PI) - x.atan2(y);
-                power = 1.0;//(x.powi(2) + y.powi(2)).sqrt() / 120.0;
+                power = (x.powi(2) + y.powi(2)).sqrt() / 100.0;
             },
             None => power = 0.0,
         }
@@ -463,7 +463,7 @@ fn main() {
         let mut motor2: f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[1][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[1][1];
         let mut motor3: f64 = direction_sceta_dig_x_y[0] * motor_dir_x_y[2][0] + direction_sceta_dig_x_y[1] * motor_dir_x_y[2][1];
 
-        let max_num_rev: f64 = 1.0 / ( motor1.max(motor2).max(motor3) );
+        let max_num_rev: f64 = 1.0 / ( motor1.abs().max(motor2.abs()).max(motor3.abs()) );
 
         motor1 = motor1 * max_num_rev;
         motor2 = motor2 * max_num_rev;
