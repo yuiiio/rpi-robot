@@ -8,6 +8,7 @@ use std::thread;
 use rppal::spi;
 use rppal::spi::{Spi, Bus, SlaveSelect};
 use rppal::gpio::{Gpio, Level};
+use evdev::{Device, RelativeAxisType, InputEventKind};
 
 fn generate_cmd<'a>(motor: &[i8; 3], cmd_str: &'a mut String) -> &'a [u8] {
 
@@ -205,8 +206,8 @@ fn main() {
         let mut spi1_0 = Spi::new( Bus::Spi1, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
         let mut spi1_1 = Spi::new( Bus::Spi1, SlaveSelect::Ss1, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
         let mut spi1_2 = Spi::new( Bus::Spi1, SlaveSelect::Ss2, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
-        let write_data :Vec<u8> = vec![0x40];
-        let mut read_first_seg :Vec<u8> = vec![0];
+        let write_data: Vec<u8> = vec![0x40];
+        let mut read_first_seg: Vec<u8> = vec![0];
 
         let mut read_data1_h: Vec<u8> = vec![0];
         let mut read_data1_l: Vec<u8> = vec![0];
@@ -217,9 +218,11 @@ fn main() {
         let mut read_data4_h: Vec<u8> = vec![0];
         let mut read_data4_l: Vec<u8> = vec![0];
 
-        let mut sensor_val_from_slave0 :[u16; 4] = [0; 4];
-        let mut sensor_val_from_slave1 :[u16; 4] = [0; 4];
-        let mut sensor_val_from_slave2 :[u16; 4] = [0; 4];
+        let mut sensor_val_from_slave0: [u16; 4] = [0; 4];
+        let mut sensor_val_from_slave1: [u16; 4] = [0; 4];
+        let mut sensor_val_from_slave2: [u16; 4] = [0; 4];
+
+        let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
 
         loop{
             let _ret = spi1_0.write( &write_data );
@@ -399,6 +402,14 @@ fn main() {
                 }
             }
 
+            ball_pos = [ // three times average
+                (previous_ball_pos[0][0] + previous_ball_pos[1][0] + ball_pos[0]) / 3.0,
+                (previous_ball_pos[0][1] + previous_ball_pos[1][1] + ball_pos[1]) / 3.0,
+            ];
+
+            previous_ball_pos[0] = previous_ball_pos[1];
+            previous_ball_pos[1] = ball_pos;
+
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
             if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 100.0 { //ball dist
@@ -411,6 +422,30 @@ fn main() {
             //println!("ball_pos_option: {:?}", ball_pos_option);
             let mut param = ball_pos_relative_clone.lock().unwrap();
             *param = ball_pos_option;
+        }
+    });
+
+    let machine_pos: Arc<Mutex<[i32; 2]>> = Arc::new(Mutex::new([0; 2]));
+    let machine_pos_clone = Arc::clone(&machine_pos);
+
+    let _handle5 = thread::spawn(move || {
+        let mut device = Device::open("/dev/input/by-id/usb-Avago_USB_LaserStream_TM__Mouse-event-mouse").unwrap();
+        let mut val :[i32; 2] = [0; 2];
+        loop {
+            for ev in device.fetch_events().unwrap() {
+                match ev.kind() {
+                    InputEventKind::RelAxis(axis) => {
+                        match axis {
+                            RelativeAxisType::REL_X => val[0] = ev.value(),
+                            RelativeAxisType::REL_Y => val[1] = ev.value(),
+                            _ => (),
+                        }
+                    },
+                    _ => (),
+                }
+            }
+
+            println!("{:?}", val);
         }
     });
     
@@ -445,7 +480,7 @@ fn main() {
         match ball_pos {
             Some([x, y]) => { 
                 direction_sceta_dig = (2.0 * PI) - x.atan2(y);
-                power = (x.powi(2) + y.powi(2)).sqrt() / 100.0;
+                power = 0.6;// (x.powi(2) + y.powi(2)).sqrt() / 100.0;
             },
             None => power = 0.0,
         }
