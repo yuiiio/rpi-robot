@@ -491,25 +491,25 @@ fn main() {
 
         match ball_pos {
             Some([x, y]) => { 
-                let mut ball_pos_now: [f64; 2] = [ // three times average
-                    (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
-                    (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
-                ];
+                if x.is_normal() && y.is_normal() {
+                    let ball_pos_now: [f64; 2] = [ // three times average
+                        (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
+                        (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
+                    ];
 
-                if ball_pos_now[0] == std::f64::NAN {
-                    ball_pos_now[0] = previous_ball_pos[1][0]; 
-                };
-                if ball_pos_now[1] == std::f64::NAN {
-                    ball_pos_now[1] = previous_ball_pos[1][1]; 
-                };
-                println!("{:?}", ball_pos_now);
+                    println!("{:?}", ball_pos_now);
 
-                previous_ball_pos[0] = previous_ball_pos[1];
-                previous_ball_pos[1] = ball_pos_now;
-                direction_sceta_dig = (2.0 * PI) - ball_pos_now[0].atan2(ball_pos_now[1]);
-                power = 0.6;// (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt() / 100.0;
+                    previous_ball_pos[0] = previous_ball_pos[1];
+                    previous_ball_pos[1] = ball_pos_now;
+                    direction_sceta_dig = (2.0 * PI) - ball_pos_now[0].atan2(ball_pos_now[1]);
+                    power = 0.6;// (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt() / 100.0;
+                } else {
+                    power = 0.0;
+                }
             },
-            None => power = 0.0,
+            None => {
+                power = 0.0;
+            },
         }
 
 
