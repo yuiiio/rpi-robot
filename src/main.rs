@@ -222,7 +222,7 @@ fn main() {
         let mut sensor_val_from_slave1: [u16; 4] = [0; 4];
         let mut sensor_val_from_slave2: [u16; 4] = [0; 4];
 
-        const BALL_MAX_DIST: f64 = 75.0;
+        const BALL_MAX_DIST: f64 = 70.0;
 
         loop{
             let _ret = spi1_0.write( &write_data );
@@ -473,7 +473,8 @@ fn main() {
     let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
     const BALL_R: f64 = 3.75;
     const MACHINE_R: f64 = 11.0;
-    const C_R: f64 = BALL_R + MACHINE_R;
+    const MARGIN: f64 = 5.0; //wrapround magin;
+    const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
     // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
@@ -502,7 +503,7 @@ fn main() {
                         (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
                     ];
 
-                    //println!("{:?}", ball_pos_now);
+                    //println!("ball_pos: {:?}", ball_pos_now);
 
                     // 3 times avg
                     previous_ball_pos[0] = previous_ball_pos[1];
@@ -547,15 +548,22 @@ fn main() {
                                 target_point = second_point;
                             }
                             
+                            //println!("target_point: {:?}", target_point);
+                            
                             direction_sceta_dig = (2.0 * PI) - (target_point[0].atan2(target_point[1]));
                             power = 0.6;// ball_dist / 100.0;
                         },
                         None => {
                             // not expect in this case;
-                            println!("some thing wrong");
+                            //println!("some thing wrong");
+                            // but sometimes happen... 
+                            // very rare case maybe,
+                            // need rethiking this case, but at now, use ball_dir
+                            direction_sceta_dig = ball_dir;
+                            power = 0.6;// ball_dist / 100.0;
                         },
                     };
-                } else {
+                } else { //ball_pos x, y is not normal
                     power = 0.0;
                 }
             },
