@@ -222,6 +222,8 @@ fn main() {
         let mut sensor_val_from_slave1: [u16; 4] = [0; 4];
         let mut sensor_val_from_slave2: [u16; 4] = [0; 4];
 
+        const BALL_MAX_DIST: f64 = 75.0;
+
         loop{
             let _ret = spi1_0.write( &write_data );
             //thread::sleep(lpc1114_wait);
@@ -380,7 +382,7 @@ fn main() {
             // now we try to choise most long dist one instead.
             // but not works well at small dist.
             // try avg 8 circle center.
-            let mut minimum_circle_r = MAX;
+            //let mut minimum_circle_r = MAX;
             //let mut most_long_dist = 0.0;
             let mut ball_pos: [f64; 2] = [0.0 as f64, 0.0 as f64];
 
@@ -412,7 +414,7 @@ fn main() {
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
             let ball_dist: f64 = (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt(); //ball dist
-            if ball_dist >= 70.0 {
+            if ball_dist >= BALL_MAX_DIST {
                 // not found
                 ball_pos_option = Option::None;
                 //println!("BALL not found (too long dist)");
@@ -469,6 +471,9 @@ fn main() {
     let mut cycle_num: u8 = 0;
 
     let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
+    const BALL_R: f64 = 3.75;
+    const MACHINE_R: f64 = 11.0;
+    const C_R: f64 = BALL_R + MACHINE_R;
     // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
@@ -497,12 +502,59 @@ fn main() {
                         (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
                     ];
 
-                    println!("{:?}", ball_pos_now);
+                    //println!("{:?}", ball_pos_now);
 
+                    // 3 times avg
                     previous_ball_pos[0] = previous_ball_pos[1];
                     previous_ball_pos[1] = ball_pos_now;
-                    direction_sceta_dig = (2.0 * PI) - ball_pos_now[0].atan2(ball_pos_now[1]);
-                    power = 0.6;// (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt() / 100.0;
+                    let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
+                    let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
+
+                    // calc target pos for football game
+                    // wraparound
+                    let own_goal_dir: f64 = PI; // relative
+                    let enemy_goal_dir: f64 = 0.0; // relative
+
+                    let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
+                    let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
+
+                    let cos_machine_ball_c: f64 = C_R / ball_dist; //always cos_machine_c < 1.0, CR < ball_dist, expect BALL_R + MACHINE_R < BALL_DIST but not definitly
+                    let cos_machine_ball_c: f64 = cos_machine_ball_c.clamp(0.0, 1.0); // definitly cos_machine_c <= 1.0
+                    let sin_machine_ball_c: f64 = (1.0 - cos_machine_ball_c).sqrt(); // always use 0>sin // should  (1.0 - cos_machine_ball_c) > 0.0, cos_machine_ball_c < 1.0 
+                    let machine_c_r: f64 = sin_machine_ball_c * ball_dist; //should use tan for simplify ?
+
+                    let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
+                    let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
+
+                    match circle_cross_point(circle_a, circle_b) {
+                        Some(cross_point) => {
+                            let mut target_point: [f64; 2] = [0.0; 2];
+                            let first_point: [f64; 2] = cross_point.first;
+                            let second_point: [f64; 2] = cross_point.second;
+
+                            let first_point_dist: f64 = (first_point[0].powi(2) + first_point[1].powi(2)).sqrt();
+                            let first_point_normal: [f64; 2] = [first_point[0] / first_point_dist, first_point[1] / first_point_dist];
+                            let cos_first_point_own_goal: f64 =  first_point_normal[0]*own_goal_vec[0] + first_point_normal[1]*own_goal_vec[1];
+                            
+                            let second_point_dist: f64 = (second_point[0].powi(2) + second_point[1].powi(2)).sqrt();
+                            let second_point_normal: [f64; 2] = [second_point[0] / second_point_dist, second_point[1] / second_point_dist];
+                            let cos_second_point_own_goal: f64 =  second_point_normal[0]*own_goal_vec[0] + second_point_normal[1]*own_goal_vec[1];
+
+                            //wraparound own goal dir side
+                            if cos_first_point_own_goal >= cos_second_point_own_goal {
+                                target_point = first_point;
+                            } else {
+                                target_point = second_point;
+                            }
+                            
+                            direction_sceta_dig = (2.0 * PI) - (target_point[0].atan2(target_point[1]));
+                            power = 0.6;// ball_dist / 100.0;
+                        },
+                        None => {
+                            // not expect in this case;
+                            println!("some thing wrong");
+                        },
+                    };
                 } else {
                     power = 0.0;
                 }
