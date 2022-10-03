@@ -378,6 +378,8 @@ fn main() {
             // too.
             // so, can't detect long dist case.
             // now we try to choise most long dist one instead.
+            // but not works well at small dist.
+            // try avg 8 circle center.
             let mut minimum_circle_r = MAX;
             //let mut most_long_dist = 0.0;
             let mut ball_pos: [f64; 2] = [0.0 as f64, 0.0 as f64];
@@ -386,10 +388,17 @@ fn main() {
                 for j in [cross_point_b.first, cross_point_b.second] {
                     for k in [cross_point_c.first, cross_point_c.second] {
                         let circle_p: [f64; 3] = three_point_circle(i, j, k);
+                        ball_pos = [
+                            ball_pos[0] + circle_p[0]*(1.0/8.0),
+                            ball_pos[1] + circle_p[1]*(1.0/8.0)
+                        ]; //x, y
+
+                        /*
                         if circle_p[2] < minimum_circle_r { //r
                             minimum_circle_r = circle_p[2];
                             ball_pos = [circle_p[0], circle_p[1]]; //x, y
                         }
+                        */
                         /*
                         if most_long_dist < (circle_p[0].powi(2) * circle_p[1].powi(2)).sqrt() {
                             most_long_dist = (circle_p[0].powi(2) * circle_p[1].powi(2)).sqrt();
@@ -402,7 +411,8 @@ fn main() {
 
             let mut ball_pos_option: Option<[f64; 2]> = Option::None;
 
-            if (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt() >= 100.0 { //ball dist
+            let ball_dist: f64 = (ball_pos[0].powi(2) + ball_pos[1].powi(2)).sqrt(); //ball dist
+            if ball_dist >= 70.0 {
                 // not found
                 ball_pos_option = Option::None;
                 //println!("BALL not found (too long dist)");
@@ -410,6 +420,7 @@ fn main() {
                 ball_pos_option = Option::Some([ball_pos[0], ball_pos[1]]);
             }
             //println!("ball_pos_option: {:?}", ball_pos_option);
+            //println!("ball_dist: {:?}", ball_dist);
             let mut param = ball_pos_relative_clone.lock().unwrap();
             *param = ball_pos_option;
         }
@@ -480,10 +491,18 @@ fn main() {
 
         match ball_pos {
             Some([x, y]) => { 
-                let ball_pos_now: [f64; 2] = [ // three times average
+                let mut ball_pos_now: [f64; 2] = [ // three times average
                     (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
                     (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
                 ];
+
+                if ball_pos_now[0] == std::f64::NAN {
+                    ball_pos_now[0] = previous_ball_pos[1][0]; 
+                };
+                if ball_pos_now[1] == std::f64::NAN {
+                    ball_pos_now[1] = previous_ball_pos[1][1]; 
+                };
+                println!("{:?}", ball_pos_now);
 
                 previous_ball_pos[0] = previous_ball_pos[1];
                 previous_ball_pos[1] = ball_pos_now;
@@ -492,6 +511,7 @@ fn main() {
             },
             None => power = 0.0,
         }
+
 
         let robot_dir: u16 = 270; //controll
 
