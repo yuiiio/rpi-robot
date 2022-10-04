@@ -460,12 +460,13 @@ fn main() {
 
     const BALL_R: f64 = 3.75;
     const MACHINE_R: f64 = 11.0;
-    const MARGIN: f64 = 10.0; //wrapround magin;
+    const MARGIN: f64 = 15.0; //wrapround magin;
     const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
+        //let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
+        let mut previous_target_pos: [f64; 2] = [0.0; 2];
         loop {
             let mut target_pos_relative_option: Option<[f64; 2]> = Option::None;
 
@@ -474,16 +475,20 @@ fn main() {
             match ball_pos {
                 Some([x, y]) => { 
                     if x.is_normal() && y.is_normal() {
+                        /*
                         let ball_pos_now: [f64; 2] = [ // three times average
                             (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
                             (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
                         ];
+                        */
+                        let ball_pos_now: [f64; 2] = [x, y];
 
                         //println!("ball_pos: {:?}", ball_pos_now);
 
                         // 3 times avg
-                        previous_ball_pos[0] = previous_ball_pos[1];
-                        previous_ball_pos[1] = ball_pos_now;
+                        //previous_ball_pos[0] = previous_ball_pos[1];
+                        //previous_ball_pos[1] = ball_pos_now;
+
                         let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
                         let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
 
@@ -531,19 +536,26 @@ fn main() {
 
                                     //println!("target_point: {:?}", target_point);
                                     target_pos_relative_option = Option::Some(target_point);
+                                    previous_target_pos = target_point;
                                 },
                                 None => {
                                     // not expect in this case;
                                     //println!("some thing wrong");
                                     // but sometimes happen... 
-                                    // very rare case maybe incorrect param
+                                    // maybe incorrect param
                                     // need rethiking this case, but at now, use ball_pos
-                                    target_pos_relative_option = Option::Some(ball_pos_now);
+                                    //target_pos_relative_option = Option::Some(ball_pos_now);
+                                    //target_pos_relative_option = Option::None;
+                                    //ok, maybe need check (MACHINE_R + BALL_R + MARGIN_R) = C_R > ball_dist
+                                    //^wrong this think..
+                                    //try previous value
+                                    target_pos_relative_option = Option::Some(previous_target_pos);
                                 },
                             };
                         }
                     } else { //ball_pos x, y is not normal
-                        target_pos_relative_option = Option::None;
+                        //target_pos_relative_option = Option::None;
+                        target_pos_relative_option = Option::Some(previous_target_pos);
                     }
                 },
                 None => {
