@@ -503,11 +503,8 @@ fn main() {
                             let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
                             let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
 
-                            let ball_dist = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
-                            let cos_machine_ball_c: f64 = C_R / ball_dist; //always cos_machine_c < 1.0, CR < ball_dist, expect BALL_R + MACHINE_R < BALL_DIST but not definitly
-                            let cos_machine_ball_c: f64 = cos_machine_ball_c.clamp(0.0, 1.0); // definitly cos_machine_c <= 1.0
-                            let sin_machine_ball_c: f64 = (1.0 - (cos_machine_ball_c.powi(2))).sqrt(); // always use 0>sin // should  (1.0 - cos_machine_ball_c) > 0.0, cos_machine_ball_c < 1.0 
-                            let machine_c_r: f64 = sin_machine_ball_c * ball_dist; //should use tan for simplify ?
+                            let ball_dist: f64 = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
+                            let machine_c_r: f64 = (ball_dist.powi(2) - C_R.powi(2)).sqrt();
 
                             let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
                             let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
