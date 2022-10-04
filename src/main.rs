@@ -458,7 +458,7 @@ fn main() {
 
     const BALL_R: f64 = 3.75;
     const MACHINE_R: f64 = 11.0;
-    const MARGIN: f64 = 15.0; //wrapround magin;
+    const MARGIN: f64 = 20.0; //wrapround magin;
     const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
 
     // calc target_pos
@@ -503,8 +503,13 @@ fn main() {
                             let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
                             let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
 
-                            let ball_dist: f64 = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
-                            let machine_c_r: f64 = (ball_dist.powi(2) - C_R.powi(2)).sqrt();
+                            let ball_dist_clamp: f64 = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
+                            let ball_pos_now: [f64; 2] = [
+                                ball_pos_now[0]*ball_dist_clamp/ball_dist, 
+                                ball_pos_now[1]*ball_dist_clamp/ball_dist, 
+                            ];
+
+                            let machine_c_r: f64 = (ball_dist_clamp.powi(2) - C_R.powi(2)).sqrt();
 
                             let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
                             let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
@@ -537,6 +542,8 @@ fn main() {
                                 None => {
                                     // not expect in this case;
                                     println!("some thing wrong");
+                                    println!("circle_a: {:?}", circle_a);
+                                    println!("circle_b: {:?}", circle_b);
                                 },
                             };
                         }
