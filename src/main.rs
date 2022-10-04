@@ -454,6 +454,101 @@ fn main() {
             *param = val;
         }
     });
+
+    let target_pos_relative: Arc<Mutex<Option<[f64; 2]>>> = Arc::new(Mutex::new(Option::None));
+    let target_pos_relative_clone = Arc::clone(&target_pos_relative);
+
+    const BALL_R: f64 = 3.75;
+    const MACHINE_R: f64 = 11.0;
+    const MARGIN: f64 = 5.0; //wrapround magin;
+    const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
+
+    // calc target_pos
+    let _handle6 = thread::spawn(move || {
+        let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
+        loop {
+            let mut target_pos_relative_option: Option<[f64; 2]> = Option::None;
+
+            let ball_pos: Option<[f64; 2]> = *(ball_pos_relative.lock().unwrap());
+
+            match ball_pos {
+                Some([x, y]) => { 
+                    if x.is_normal() && y.is_normal() {
+                        let ball_pos_now: [f64; 2] = [ // three times average
+                            (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
+                            (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
+                        ];
+
+                        //println!("ball_pos: {:?}", ball_pos_now);
+
+                        // 3 times avg
+                        previous_ball_pos[0] = previous_ball_pos[1];
+                        previous_ball_pos[1] = ball_pos_now;
+                        let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
+                        let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
+
+                        // calc target pos for football game
+                        // wraparound
+                        let own_goal_dir: f64 = PI; // relative to ball coordinates
+                        let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
+
+                        let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
+                        let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
+
+                        let cos_machine_ball_c: f64 = C_R / ball_dist; //always cos_machine_c < 1.0, CR < ball_dist, expect BALL_R + MACHINE_R < BALL_DIST but not definitly
+                        let cos_machine_ball_c: f64 = cos_machine_ball_c.clamp(0.0, 1.0); // definitly cos_machine_c <= 1.0
+                        let sin_machine_ball_c: f64 = (1.0 - cos_machine_ball_c).sqrt(); // always use 0>sin // should  (1.0 - cos_machine_ball_c) > 0.0, cos_machine_ball_c < 1.0 
+                        let machine_c_r: f64 = sin_machine_ball_c * ball_dist; //should use tan for simplify ?
+
+                        let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
+                        let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
+
+                        match circle_cross_point(circle_a, circle_b) {
+                            Some(cross_point) => {
+                                let mut target_point: [f64; 2] = [0.0; 2];
+                                let first_point: [f64; 2] = cross_point.first;
+                                let second_point: [f64; 2] = cross_point.second;
+
+                                let ball_first_point: [f64; 2] = [ball_pos_now[0] - first_point[0], ball_pos_now[1] - first_point[1]];
+                                let ball_first_point_normal: [f64; 2] = [ball_first_point[0] / C_R, ball_first_point[1] / C_R];
+                                let cos_ball_first_point_own_goal: f64 =  ball_first_point_normal[0]*own_goal_vec[0] + ball_first_point_normal[1]*own_goal_vec[1];
+
+                                let ball_second_point: [f64; 2] = [ball_pos_now[0] - second_point[0], ball_pos_now[1] - second_point[1]];
+                                let ball_second_point_normal: [f64; 2] = [ball_second_point[0] / C_R, ball_second_point[1] / C_R];
+                                let cos_ball_second_point_own_goal: f64 =  ball_second_point_normal[0]*own_goal_vec[0] + ball_second_point_normal[1]*own_goal_vec[1];
+
+                                //avoid own goal
+                                if cos_ball_first_point_own_goal < cos_ball_second_point_own_goal {
+                                    target_point = first_point;
+                                } else {
+                                    target_point = second_point;
+                                }
+
+                                //println!("target_point: {:?}", target_point);
+                                target_pos_relative_option = Option::Some(target_point);
+                            },
+                            None => {
+                                // not expect in this case;
+                                //println!("some thing wrong");
+                                // but sometimes happen... 
+                                // very rare case maybe,
+                                // need rethiking this case, but at now, use ball_pos
+                                target_pos_relative_option = Option::Some(ball_pos_now);
+                            },
+                        };
+                    } else { //ball_pos x, y is not normal
+                        target_pos_relative_option = Option::None;
+                    }
+                },
+                None => {
+                    target_pos_relative_option = Option::None;
+                },
+            };
+
+            let mut param = target_pos_relative_clone.lock().unwrap();
+            *param = target_pos_relative_option;
+        }
+    });
     
     thread::sleep(Duration::from_millis(100));
 
@@ -470,11 +565,6 @@ fn main() {
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
 
-    let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
-    const BALL_R: f64 = 3.75;
-    const MACHINE_R: f64 = 11.0;
-    const MARGIN: f64 = 5.0; //wrapround magin;
-    const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
     // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
@@ -485,7 +575,7 @@ fn main() {
         let power: f64 = power_u8 as f64 / 255.0 as f64;
         */
 
-        let ball_pos: Option<[f64; 2]> = *(ball_pos_relative.lock().unwrap());
+        let read_target_pos_relative: Option<[f64; 2]> = *(target_pos_relative.lock().unwrap());
 
 
         let machine_pos: [i32; 2] = *(machine_pos.lock().unwrap());
@@ -495,77 +585,10 @@ fn main() {
         let mut direction_sceta_dig: f64 = 0.0;
         let mut power: f64 = 0.0;
 
-        match ball_pos {
-            Some([x, y]) => { 
-                if x.is_normal() && y.is_normal() {
-                    let ball_pos_now: [f64; 2] = [ // three times average
-                        (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
-                        (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
-                    ];
-
-                    //println!("ball_pos: {:?}", ball_pos_now);
-
-                    // 3 times avg
-                    previous_ball_pos[0] = previous_ball_pos[1];
-                    previous_ball_pos[1] = ball_pos_now;
-                    let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
-                    let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
-
-                    // calc target pos for football game
-                    // wraparound
-                    let own_goal_dir: f64 = PI; // relative to ball coordinates
-                    let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
-
-                    let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
-                    let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
-
-                    let cos_machine_ball_c: f64 = C_R / ball_dist; //always cos_machine_c < 1.0, CR < ball_dist, expect BALL_R + MACHINE_R < BALL_DIST but not definitly
-                    let cos_machine_ball_c: f64 = cos_machine_ball_c.clamp(0.0, 1.0); // definitly cos_machine_c <= 1.0
-                    let sin_machine_ball_c: f64 = (1.0 - cos_machine_ball_c).sqrt(); // always use 0>sin // should  (1.0 - cos_machine_ball_c) > 0.0, cos_machine_ball_c < 1.0 
-                    let machine_c_r: f64 = sin_machine_ball_c * ball_dist; //should use tan for simplify ?
-
-                    let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
-                    let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
-
-                    match circle_cross_point(circle_a, circle_b) {
-                        Some(cross_point) => {
-                            let mut target_point: [f64; 2] = [0.0; 2];
-                            let first_point: [f64; 2] = cross_point.first;
-                            let second_point: [f64; 2] = cross_point.second;
-
-                            let ball_first_point: [f64; 2] = [ball_pos_now[0] - first_point[0], ball_pos_now[1] - first_point[1]];
-                            let ball_first_point_normal: [f64; 2] = [ball_first_point[0] / C_R, ball_first_point[1] / C_R];
-                            let cos_ball_first_point_own_goal: f64 =  ball_first_point_normal[0]*own_goal_vec[0] + ball_first_point_normal[1]*own_goal_vec[1];
-                            
-                            let ball_second_point: [f64; 2] = [ball_pos_now[0] - second_point[0], ball_pos_now[1] - second_point[1]];
-                            let ball_second_point_normal: [f64; 2] = [ball_second_point[0] / C_R, ball_second_point[1] / C_R];
-                            let cos_ball_second_point_own_goal: f64 =  ball_second_point_normal[0]*own_goal_vec[0] + ball_second_point_normal[1]*own_goal_vec[1];
-
-                            //avoid own goal
-                            if cos_ball_first_point_own_goal < cos_ball_second_point_ball_own_goal {
-                                target_point = first_point;
-                            } else {
-                                target_point = second_point;
-                            }
-                            
-                            //println!("target_point: {:?}", target_point);
-                            
-                            direction_sceta_dig = (2.0 * PI) - (target_point[0].atan2(target_point[1]));
-                            power = 0.6;// ball_dist / 100.0;
-                        },
-                        None => {
-                            // not expect in this case;
-                            //println!("some thing wrong");
-                            // but sometimes happen... 
-                            // very rare case maybe,
-                            // need rethiking this case, but at now, use ball_dir
-                            direction_sceta_dig = ball_dir;
-                            power = 0.6;// ball_dist / 100.0;
-                        },
-                    };
-                } else { //ball_pos x, y is not normal
-                    power = 0.0;
-                }
+        match read_target_pos_relative{
+            Some([x, y]) => {
+                direction_sceta_dig = (2.0 * PI) - (x.atan2(y));
+                power = 0.6;// ball_dist / 100.0;
             },
             None => {
                 power = 0.0;
