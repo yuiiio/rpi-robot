@@ -460,7 +460,7 @@ fn main() {
 
     const BALL_R: f64 = 3.75;
     const MACHINE_R: f64 = 11.0;
-    const MARGIN: f64 = 5.0; //wrapround magin;
+    const MARGIN: f64 = 10.0; //wrapround magin;
     const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
 
     // calc target_pos
@@ -490,7 +490,7 @@ fn main() {
                         let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
                         // calc target pos for football game
-                        if (ball_dir - enemy_goal_dir).cos()  > 0.0 {
+                        if (ball_dir - enemy_goal_dir).cos()  > 0.5 {
                             //target enemy goal
                             target_pos_relative_option = Option::Some(ball_pos_now);
                         } else {
@@ -536,7 +536,7 @@ fn main() {
                                     // not expect in this case;
                                     //println!("some thing wrong");
                                     // but sometimes happen... 
-                                    // very rare case maybe,
+                                    // very rare case maybe incorrect param
                                     // need rethiking this case, but at now, use ball_pos
                                     target_pos_relative_option = Option::Some(ball_pos_now);
                                 },
@@ -551,6 +551,7 @@ fn main() {
                 },
             };
 
+            //println!("target_point_relative_option: {:?}", target_pos_relative_option);
             let mut param = target_pos_relative_clone.lock().unwrap();
             *param = target_pos_relative_option;
         }
