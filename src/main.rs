@@ -513,8 +513,8 @@ fn main() {
 
                     // calc target pos for football game
                     // wraparound
-                    let own_goal_dir: f64 = PI; // relative
-                    let enemy_goal_dir: f64 = 0.0; // relative
+                    let own_goal_dir: f64 = PI; // relative to ball coordinates
+                    let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
                     let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
                     let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
@@ -533,16 +533,16 @@ fn main() {
                             let first_point: [f64; 2] = cross_point.first;
                             let second_point: [f64; 2] = cross_point.second;
 
-                            let first_point_dist: f64 = (first_point[0].powi(2) + first_point[1].powi(2)).sqrt();
-                            let first_point_normal: [f64; 2] = [first_point[0] / first_point_dist, first_point[1] / first_point_dist];
-                            let cos_first_point_own_goal: f64 =  first_point_normal[0]*own_goal_vec[0] + first_point_normal[1]*own_goal_vec[1];
+                            let ball_first_point: [f64; 2] = [ball_pos_now[0] - first_point[0], ball_pos_now[1] - first_point[1]];
+                            let ball_first_point_normal: [f64; 2] = [ball_first_point[0] / C_R, ball_first_point[1] / C_R];
+                            let cos_ball_first_point_own_goal: f64 =  ball_first_point_normal[0]*own_goal_vec[0] + ball_first_point_normal[1]*own_goal_vec[1];
                             
-                            let second_point_dist: f64 = (second_point[0].powi(2) + second_point[1].powi(2)).sqrt();
-                            let second_point_normal: [f64; 2] = [second_point[0] / second_point_dist, second_point[1] / second_point_dist];
-                            let cos_second_point_own_goal: f64 =  second_point_normal[0]*own_goal_vec[0] + second_point_normal[1]*own_goal_vec[1];
+                            let ball_second_point: [f64; 2] = [ball_pos_now[0] - second_point[0], ball_pos_now[1] - second_point[1]];
+                            let ball_second_point_normal: [f64; 2] = [ball_second_point[0] / C_R, ball_second_point[1] / C_R];
+                            let cos_ball_second_point_own_goal: f64 =  ball_second_point_normal[0]*own_goal_vec[0] + ball_second_point_normal[1]*own_goal_vec[1];
 
-                            //wraparound own goal dir side
-                            if cos_first_point_own_goal >= cos_second_point_own_goal {
+                            //avoid own goal
+                            if cos_ball_first_point_own_goal < cos_ball_second_point_ball_own_goal {
                                 target_point = first_point;
                             } else {
                                 target_point = second_point;
