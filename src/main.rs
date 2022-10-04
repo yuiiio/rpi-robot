@@ -131,8 +131,6 @@ fn main() {
 
     let _handle = thread::spawn(move || {
         loop {
-            let mut from_controller_str = String::new();
-            io::stdin().read_line(&mut from_controller_str).unwrap();
             let mut from_controller = from_controller_str.split(' ');
             let direction_sceta: u16 = from_controller.next().unwrap().parse::<u16>().unwrap();
             let power_u8: u8 = from_controller.next().unwrap().trim_matches('\n').parse::<u8>().unwrap();
@@ -201,6 +199,8 @@ fn main() {
     let ball_pos_relative: Arc<Mutex<Option<[f64; 2]>>> = Arc::new(Mutex::new(Option::None));
     let ball_pos_relative_clone = Arc::clone(&ball_pos_relative);
 
+    const BALL_MAX_DIST: f64 = 70.0;
+
     let _handle4 = thread::spawn(move || {
         //let lpc1114_wait = Duration::from_micros(10000);
         let mut spi1_0 = Spi::new( Bus::Spi1, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
@@ -221,8 +221,6 @@ fn main() {
         let mut sensor_val_from_slave0: [u16; 4] = [0; 4];
         let mut sensor_val_from_slave1: [u16; 4] = [0; 4];
         let mut sensor_val_from_slave2: [u16; 4] = [0; 4];
-
-        const BALL_MAX_DIST: f64 = 70.0;
 
         loop{
             let _ret = spi1_0.write( &write_data );
@@ -505,9 +503,10 @@ fn main() {
                             let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
                             let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
 
+                            let ball_dist = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
                             let cos_machine_ball_c: f64 = C_R / ball_dist; //always cos_machine_c < 1.0, CR < ball_dist, expect BALL_R + MACHINE_R < BALL_DIST but not definitly
                             let cos_machine_ball_c: f64 = cos_machine_ball_c.clamp(0.0, 1.0); // definitly cos_machine_c <= 1.0
-                            let sin_machine_ball_c: f64 = (1.0 - cos_machine_ball_c).sqrt(); // always use 0>sin // should  (1.0 - cos_machine_ball_c) > 0.0, cos_machine_ball_c < 1.0 
+                            let sin_machine_ball_c: f64 = (1.0 - (cos_machine_ball_c.powi(2))).sqrt(); // always use 0>sin // should  (1.0 - cos_machine_ball_c) > 0.0, cos_machine_ball_c < 1.0 
                             let machine_c_r: f64 = sin_machine_ball_c * ball_dist; //should use tan for simplify ?
 
                             let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
@@ -540,16 +539,7 @@ fn main() {
                                 },
                                 None => {
                                     // not expect in this case;
-                                    //println!("some thing wrong");
-                                    // but sometimes happen... 
-                                    // maybe incorrect param
-                                    // need rethiking this case, but at now, use ball_pos
-                                    //target_pos_relative_option = Option::Some(ball_pos_now);
-                                    //target_pos_relative_option = Option::None;
-                                    //ok, maybe need check (MACHINE_R + BALL_R + MARGIN_R) = C_R > ball_dist
-                                    //^wrong this think..
-                                    //try previous value
-                                    target_pos_relative_option = Option::Some(previous_target_pos);
+                                    println!("some thing wrong");
                                 },
                             };
                         }
@@ -615,7 +605,7 @@ fn main() {
         }
 
 
-        let robot_dir: u16 = 270; //controll
+        let robot_dir: u16 = 0; //controll
 
         let sensor_dir: u16 = 360 - *(from_sensor_dir.lock().unwrap()); //0~360, reverse
         let sensor_dir_diff: i16 = sensor_dir as i16 - robot_dir as i16;
