@@ -121,7 +121,7 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.4;
+    const KP: f64 = 0.3;
     const KI: f64 = 0.0;//10.0;
     const KD: f64 = 0.00003;
 
@@ -679,7 +679,7 @@ fn main() {
         motor3 = motor3.clamp(-1.0, 1.0);
 
         //save motor
-        if motor1.abs() < 0.15 && motor2.abs() < 0.15 && motor3.abs() < 0.15 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
+        if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
         let motor: [i8; 3] = [(motor1*100.0) as i8, (motor2*100.0) as i8, (motor3*100.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
