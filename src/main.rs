@@ -426,7 +426,7 @@ fn main() {
         }
     });
 
-    let machine_pos: Arc<Mutex<[f64; 2]>> = Arc::new(Mutex::new([0.0; 2]));
+    let machine_pos: Arc<Mutex<[i32; 2]>> = Arc::new(Mutex::new([0; 2]));
     let machine_pos_clone = Arc::clone(&machine_pos);
 
     // usb-mouse
@@ -448,10 +448,8 @@ fn main() {
             }
 
             //println!("{:?}", val);
-            let machine_pos: [f64; 2] = [val[0] as f64 * 0.002, val[1] as f64 * 0.002];
-            println!("{:?}", machine_pos);
             let mut param = machine_pos_clone.lock().unwrap();
-            *param = machine_pos;
+            *param = val;
         }
     });
 
@@ -593,7 +591,9 @@ fn main() {
         let read_target_pos_relative: Option<[f64; 2]> = *(target_pos_relative.lock().unwrap());
 
 
-        let machine_pos: [f64; 2] = *(machine_pos.lock().unwrap());
+        let machine_pos: [i32; 2] = *(machine_pos.lock().unwrap());
+        let machine_pos: [f64; 2] = [machine_pos[0] as f64 * 0.01, machine_pos[1] as f64 * 0.01];
+        //println!("{:?}", machine_pos);
 
         let mut direction_sceta_dig: f64 = 0.0;
         let mut power: f64 = 0.0;
@@ -604,8 +604,7 @@ fn main() {
                 power = 0.6;// ball_dist / 100.0;
             },
             None => {
-                direction_sceta_dig = (PI) - (machine_pos[0].atan2(machine_pos[1]));
-                power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 100.0;
+                power = 0.0;
             },
         }
 
