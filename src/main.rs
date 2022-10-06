@@ -149,6 +149,18 @@ fn main() {
         let write_data: Vec<u8> = vec![0x20];
         let mut read_data1: Vec<u8> = vec![0];
         let mut read_data2: Vec<u8> = vec![0];
+        //center dir first pos
+        let _ret = spi0_0.write( &write_data );
+        //thread::sleep(ten_micros);
+        let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
+        //thread::sleep(ten_micros);
+        let _ret = spi0_0.read( &mut read_data2 ).expect("Failed Spi::read");
+        //thread::sleep(ten_micros);
+
+        let center_dir: u16 = ((read_data1[0] as u16) << 8 ) | read_data2[0] as u16;
+        let center_dir: u16 = center_dir;
+        //println!("center_dir: {}", center_dir);
+
         loop{
             let _ret = spi0_0.write( &write_data );
             //thread::sleep(ten_micros);
@@ -158,9 +170,11 @@ fn main() {
             //thread::sleep(ten_micros);
 
             let dir: u16 = ((read_data1[0] as u16) << 8 ) | read_data2[0] as u16;
-            //println!("{}", dir);
+            let dir_diff: i16 = dir as i16 - center_dir as i16;
+            let centelyzed_dir: u16 = if dir_diff < 0 { (360 + dir_diff) as u16 } else { dir_diff as u16 }; //centelyzed by center_dir
+            //println!("centelyzed_dir: {}", centelyzed_dir);
             let mut param = from_sensor_dir_clone.lock().unwrap();
-            *param = dir;
+            *param = centelyzed_dir;
         }
     });
 
@@ -461,9 +475,10 @@ fn main() {
     const MARGIN: f64 = 20.0; //wrapround magin;
     const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
 
+    let from_sensor_dir_clone2 = Arc::clone(&from_sensor_dir);
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        //let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
+        let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
         let mut previous_target_pos: [f64; 2] = [0.0; 2];
         loop {
             let mut target_pos_relative_option: Option<[f64; 2]> = Option::None;
@@ -473,19 +488,25 @@ fn main() {
             match ball_pos {
                 Some([x, y]) => { 
                     if x.is_normal() && y.is_normal() {
-                        /*
+                        let sensor_dir: u16 = 360 - *(from_sensor_dir_clone2.lock().unwrap()); //0~360, reverse
+                        let sensor_dir_dig: f64 = 2.0 * PI *(sensor_dir as f64 / 360.0);
+                        let sensor_dir_sin: f64 = sensor_dir_dig.sin();
+                        let sensor_dir_cos: f64 = sensor_dir_dig.cos();
+
+                        let rotate_x:f64 = (x * sensor_dir_cos) + (y * (-1.0 * sensor_dir_sin));
+                        let rotate_y:f64 = (x * sensor_dir_sin) + (y * sensor_dir_cos);
+
                         let ball_pos_now: [f64; 2] = [ // three times average
-                            (previous_ball_pos[0][0] + previous_ball_pos[1][0] + x) / 3.0,
-                            (previous_ball_pos[0][1] + previous_ball_pos[1][1] + y) / 3.0,
+                            (previous_ball_pos[0][0] + previous_ball_pos[1][0] + rotate_x) / 3.0,
+                            (previous_ball_pos[0][1] + previous_ball_pos[1][1] + rotate_y) / 3.0,
                         ];
-                        */
-                        let ball_pos_now: [f64; 2] = [x, y];
+                        //let ball_pos_now: [f64; 2] = [rotate_x, rotate_y];
 
                         //println!("ball_pos: {:?}", ball_pos_now);
 
                         // 3 times avg
-                        //previous_ball_pos[0] = previous_ball_pos[1];
-                        //previous_ball_pos[1] = ball_pos_now;
+                        previous_ball_pos[0] = previous_ball_pos[1];
+                        previous_ball_pos[1] = ball_pos_now;
 
                         let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
                         let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
