@@ -556,9 +556,13 @@ fn main() {
                                         target_point = second_point;
                                     }
 
-                                    //println!("target_point: {:?}", target_point);
-                                    target_pos_relative_option = Option::Some(target_point);
-                                    previous_target_pos = target_point;
+                                    let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * (-1.0 * sensor_dir_sin));
+                                    let target_pos_rotate_y:f64 = (target_point[0] * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
+
+                                    let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
+                                    //println!("target_pos_rotate: {:?}", target_pos_rotate);
+                                    target_pos_relative_option = Option::Some(target_pos_rotate);
+                                    previous_target_pos = target_pos_rotate;
                                 },
                                 None => {
                                     // not expect in this case;
