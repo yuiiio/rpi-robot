@@ -556,8 +556,8 @@ fn main() {
                                         target_point = second_point;
                                     }
 
-                                    let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * (-1.0 * sensor_dir_sin));
-                                    let target_pos_rotate_y:f64 = (target_point[0] * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
+                                    let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
+                                    let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
 
                                     let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
                                     //println!("target_pos_rotate: {:?}", target_pos_rotate);
