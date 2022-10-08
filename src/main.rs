@@ -121,9 +121,9 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.3;
+    const KP: f64 = 0.4;
     const KI: f64 = 0.0;//10.0;
-    const KD: f64 = 0.00003;
+    const KD: f64 = 0.00004;
 
     /*
     let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
@@ -644,9 +644,13 @@ fn main() {
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
+                /*
                 direction_sceta_dig = (2.0 * PI) - ((-1.0 * machine_pos[0]).atan2((-1.0 * machine_pos[1])));
                 power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 100.0;
                 power = power.clamp(0.0, 0.6);
+                */
+
+                power = 0.0;
             },
         }
 
