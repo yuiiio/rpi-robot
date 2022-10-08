@@ -474,7 +474,7 @@ fn main() {
             accum_val[0] += rotate_x;
             accum_val[1] += rotate_y;
 
-            println!("{:?}", accum_val);
+            //println!("{:?}", accum_val);
 
             let mut param = machine_pos_clone.lock().unwrap();
             *param = accum_val;
@@ -643,7 +643,10 @@ fn main() {
                 power = 0.6;// ball_dist / 100.0;
             },
             None => {
-                power = 0.0;
+                // when ball_not found, return first pos(0.0, 0.0)
+                direction_sceta_dig = PI - (machine_pos[0].atan2(machine_pos[1]));
+                power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 100.0;
+                power = power.clamp(0.0, 0.6);
             },
         }
 
