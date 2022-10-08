@@ -440,14 +440,14 @@ fn main() {
         }
     });
 
-    let machine_pos: Arc<Mutex<[i32; 2]>> = Arc::new(Mutex::new([0; 2]));
+    let machine_pos: Arc<Mutex<[f64; 2]>> = Arc::new(Mutex::new([0.0; 2]));
     let machine_pos_clone = Arc::clone(&machine_pos);
 
     let from_sensor_dir_clone2 = Arc::clone(&from_sensor_dir);
     // usb-mouse
     let _handle5 = thread::spawn(move || {
         let mut device = Device::open("/dev/input/by-id/usb-Avago_USB_LaserStream_TM__Mouse-event-mouse").unwrap();
-        let mut accum_val :[i32; 2] = [0; 2];
+        let mut accum_val :[f64; 2] = [0.0; 2];
         let mut val :[i32; 2] = [0; 2];
         loop {
             for ev in device.fetch_events().unwrap() {
@@ -468,8 +468,8 @@ fn main() {
             let sensor_dir_sin: f64 = sensor_dir_dig.sin();
             let sensor_dir_cos: f64 = sensor_dir_dig.cos();
 
-            let rotate_x:f64 = (val[0] * sensor_dir_cos) + (val[1] * (-1.0 * sensor_dir_sin));
-            let rotate_y:f64 = (val[0] * sensor_dir_sin) + (val[1] * sensor_dir_cos);
+            let rotate_x:f64 = (val[0] as f64 * sensor_dir_cos) + (val[1] as f64 * (-1.0 * sensor_dir_sin));
+            let rotate_y:f64 = (val[0] as f64 * sensor_dir_sin) + (val[1] as f64 * sensor_dir_cos);
 
             accum_val[0] += rotate_x;
             accum_val[1] += rotate_y;
@@ -630,8 +630,8 @@ fn main() {
         let read_target_pos_relative: Option<[f64; 2]> = *(target_pos_relative.lock().unwrap());
 
 
-        let machine_pos: [i32; 2] = *(machine_pos.lock().unwrap());
-        let machine_pos: [f64; 2] = [machine_pos[0] as f64 * 0.01, machine_pos[1] as f64 * 0.01];
+        let machine_pos: [f64; 2] = *(machine_pos.lock().unwrap());
+        let machine_pos: [f64; 2] = [machine_pos[0] * 0.01, machine_pos[1] * 0.01];
         //println!("{:?}", machine_pos);
 
         let mut direction_sceta_dig: f64 = 0.0;
