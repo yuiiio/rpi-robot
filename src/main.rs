@@ -644,7 +644,7 @@ fn main() {
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
-                direction_sceta_dig = PI - (machine_pos[0].atan2(machine_pos[1]));
+                direction_sceta_dig = (2.0 * PI) - ((-1.0 * machine_pos[0]).atan2((-1.0 * machine_pos[1])));
                 power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 100.0;
                 power = power.clamp(0.0, 0.6);
             },
