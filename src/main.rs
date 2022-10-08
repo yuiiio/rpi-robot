@@ -443,17 +443,19 @@ fn main() {
     let machine_pos: Arc<Mutex<[i32; 2]>> = Arc::new(Mutex::new([0; 2]));
     let machine_pos_clone = Arc::clone(&machine_pos);
 
+    let from_sensor_dir_clone2 = Arc::clone(&from_sensor_dir);
     // usb-mouse
     let _handle5 = thread::spawn(move || {
         let mut device = Device::open("/dev/input/by-id/usb-Avago_USB_LaserStream_TM__Mouse-event-mouse").unwrap();
+        let mut accum_val :[i32; 2] = [0; 2];
         let mut val :[i32; 2] = [0; 2];
         loop {
             for ev in device.fetch_events().unwrap() {
                 match ev.kind() {
                     InputEventKind::RelAxis(axis) => {
                         match axis {
-                            RelativeAxisType::REL_X => val[1] += ev.value(),
-                            RelativeAxisType::REL_Y => val[0] += ev.value(),
+                            RelativeAxisType::REL_X => val[1] = ev.value(),
+                            RelativeAxisType::REL_Y => val[0] = ev.value(),
                             _ => (),
                         }
                     },
@@ -461,9 +463,21 @@ fn main() {
                 }
             }
 
-            //println!("{:?}", val);
+            let sensor_dir: u16 = 360 - *(from_sensor_dir_clone2.lock().unwrap()); //0~360, reverse
+            let sensor_dir_dig: f64 = 2.0 * PI *(sensor_dir as f64 / 360.0);
+            let sensor_dir_sin: f64 = sensor_dir_dig.sin();
+            let sensor_dir_cos: f64 = sensor_dir_dig.cos();
+
+            let rotate_x:f64 = (val[0] * sensor_dir_cos) + (val[1] * (-1.0 * sensor_dir_sin));
+            let rotate_y:f64 = (val[0] * sensor_dir_sin) + (val[1] * sensor_dir_cos);
+
+            accum_val[0] += rotate_x;
+            accum_val[1] += rotate_y;
+
+            println!("{:?}", accum_val);
+
             let mut param = machine_pos_clone.lock().unwrap();
-            *param = val;
+            *param = accum_val;
         }
     });
 
@@ -475,7 +489,7 @@ fn main() {
     const MARGIN: f64 = 20.0; //wrapround magin;
     const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
 
-    let from_sensor_dir_clone2 = Arc::clone(&from_sensor_dir);
+    let from_sensor_dir_clone3 = Arc::clone(&from_sensor_dir);
     // calc target_pos
     let _handle6 = thread::spawn(move || {
         let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
@@ -488,7 +502,7 @@ fn main() {
             match ball_pos {
                 Some([x, y]) => { 
                     if x.is_normal() && y.is_normal() {
-                        let sensor_dir: u16 = 360 - *(from_sensor_dir_clone2.lock().unwrap()); //0~360, reverse
+                        let sensor_dir: u16 = 360 - *(from_sensor_dir_clone3.lock().unwrap()); //0~360, reverse
                         let sensor_dir_dig: f64 = 2.0 * PI *(sensor_dir as f64 / 360.0);
                         let sensor_dir_sin: f64 = sensor_dir_dig.sin();
                         let sensor_dir_cos: f64 = sensor_dir_dig.cos();
