@@ -2,8 +2,6 @@
  * Copyright (c) 2019 ARM Limited
  * SPDX-License-Identifier: Apache-2.0
  */
-//#define ANALOGIN_MEDIAN_FILTER      0
-
 #include "mbed.h"
 #include "stdio.h"
 
@@ -222,7 +220,7 @@ AnalogIn adcIns[] = {
 };
 const unsigned int adcIns_Size = sizeof(adcIns)/sizeof(*adcIns);
 
-const unsigned int SAMPLE_SIZE = 50; //833ms = 50*rate(19)
+const unsigned int SAMPLE_SIZE = 13; //833us ~= 11*4*rate(19us) // sampling filter so, + 2
 
 SPISlave device(dp2, dp1, dp6, dp25); // mosi, miso, sclk, ssel
 
@@ -253,7 +251,9 @@ void print_lcd()
     }
 
     char* string2;
-    utoa(filter_avg[0], string2, 10);
+    uint16_t filtered = filter_avg[0] / (SAMPLE_SIZE - 2);
+
+    utoa(filtered, string2, 10);
     for ( unsigned int i = 0; i < strlen((char*)string2); i++ )
     {
         lcd._putc(string2[i]);
@@ -284,9 +284,9 @@ int main() {
         unsigned short analogHexes[adcIns_Size][SAMPLE_SIZE] = {{0}};
         Timer t;
         t.start();
-        for ( unsigned int j = 0; j < adcIns_Size; j++ )
+        for ( unsigned int i = 0; i < SAMPLE_SIZE; i++ )
         {
-            for ( unsigned int i = 0; i < SAMPLE_SIZE; i++ )
+            for ( unsigned int j = 0; j < adcIns_Size; j++ )
             {
                 analogHexes[j][i] = adcIns[j].read_u16();  // Get ADC data
             }
@@ -321,9 +321,9 @@ int main() {
             for ( unsigned int i = 1; i < (SAMPLE_SIZE - 1); i++ )
             {
                 if (analogHexes_low_pass[i] > avg[j]) {
-                    analogHexes_high_pass[i] = (analogHexes_low_pass[i] - avg[j]) * 10;
+                    analogHexes_high_pass[i] = (analogHexes_low_pass[i] - avg[j]);
                 } else {
-                    analogHexes_high_pass[i] = (avg[j] - analogHexes_low_pass[i]) * 10;
+                    analogHexes_high_pass[i] = (avg[j] - analogHexes_low_pass[i]);
                 }
                 //diff avg and raw data
             }
@@ -334,7 +334,8 @@ int main() {
             {
                 filter_sum += analogHexes_high_pass[i];
             }
-            filter_avg[j] = filter_sum / (SAMPLE_SIZE - 2);
+            filter_avg[j] = filter_sum; // / (SAMPLE_SIZE - 2);
+            //  1024 * (46 - 2) = 45056 // < uint16_t_max=65535
         }
 
         // send to SPI master device
