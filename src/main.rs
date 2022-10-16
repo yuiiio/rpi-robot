@@ -213,7 +213,7 @@ fn main() {
     let ball_pos_relative: Arc<Mutex<Option<[f64; 2]>>> = Arc::new(Mutex::new(Option::None));
     let ball_pos_relative_clone = Arc::clone(&ball_pos_relative);
 
-    const BALL_MAX_DIST: f64 = 70.0;
+    const BALL_MAX_DIST: f64 = 100.0;
 
     let _handle4 = thread::spawn(move || {
         //let lpc1114_wait = Duration::from_micros(10000);
@@ -340,7 +340,7 @@ fn main() {
             let mut circles: [[f64; 3]; 3] = [[0.0, 0.0, 0.0]; 3]; // x, y, r
 
             for i in 0..3 {
-                r_double[i] = 1000.0 / ((sensor_val_circle[three_sensor_point[i]] as f64).sqrt());
+                r_double[i] = 3000.0 / ((sensor_val_circle[three_sensor_point[i]] as f64).sqrt());
                 r[i] = r_double[i] / 2.0;
                 circles[i] = [
                     CIRCLE_SENSORS_POS[three_sensor_point[i]][0] // sensor_pos_x

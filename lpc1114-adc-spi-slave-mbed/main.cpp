@@ -4,6 +4,98 @@
  */
 #include "mbed.h"
 #include "stdio.h"
+#include "pinmap.h"
+
+static inline int div_round_up(int x, int y)
+{
+    return (x + (y - 1)) / y;
+}
+
+#define LPC_IOCON0_BASE (LPC_IOCON_BASE)
+#define LPC_IOCON1_BASE (LPC_IOCON_BASE + 0x60)
+#define MAX_ADC_CLK     4500000
+
+class FastAnalogIn {
+    public:
+             /** Create a FastAnalogIn, connected to the specified pin
+                    *
+                    * @param pin AnalogIn pin to connect to
+                    * @param enabled Enable the ADC channel (default = true)
+                    */
+                FastAnalogIn( PinName pin );
+
+                /** Returns the raw value
+                      *
+                      * @param return Unsigned integer with converted value
+                      */
+                unsigned short read_u16( void );
+
+    private:
+                char ADCnumber;
+                volatile uint32_t *datareg;
+};
+
+//lpc1114fn28
+static const PinMap PinMap_ADC[] = {
+            {P0_11, ADC0_0, 2},
+            {P1_0 , ADC0_1, 2},
+            {P1_1 , ADC0_2, 2},
+            {P1_2 , ADC0_3, 2},
+        //    {P1_3 , ADC0_4, 2}, // -- should be mapped to SWDIO only // lator can use this pin
+        //    P1_3 = PinName P1_3  = (1 << PORT_SHIFT) | (3  << PIN_SHIFT) | 0x90;
+            {P1_4 , ADC0_5, 1},
+        //    {P1_10, ADC0_6, 1},
+        //    {P1_11, ADC0_7, 1},
+            {NC   , NC    , 0},
+};
+
+FastAnalogIn::FastAnalogIn(PinName pin)
+{
+    ADCnumber = (ADCName)pinmap_peripheral(pin, PinMap_ADC);
+    if (ADCnumber == (uint32_t)NC)
+        error("ADC pin mapping failed");
+
+    //Seriously software people, can't you guys never keep the namings the same?
+    datareg = (uint32_t*) (&LPC_ADC->DR[ADCnumber]);
+
+    // Power up ADC
+    LPC_SYSCON->PDRUNCFG &= ~ (1 << 4);
+    LPC_SYSCON->SYSAHBCLKCTRL |= ((uint32_t)1 << 13);
+
+    uint32_t offset = (uint32_t)pin & 0xff;
+    __IO uint32_t *reg = (__IO uint32_t*)(LPC_IOCON_BASE + offset);
+
+    // if use PIO1_3, set 0x2 = 0b010 first 3 bit in reg
+    //if ADCnumber == ADC0_4 {
+    //}
+
+    // set pin to ADC mode
+    *reg &= ~(1 << 7); // set ADMODE = 0 (analog mode)
+
+    uint32_t clkdiv = div_round_up(SystemCoreClock, MAX_ADC_CLK) - 1;
+
+    LPC_ADC->CR = (LPC_ADC->CR & 0xFF)      // keep current channels
+                | (clkdiv << 8) // max of 4.5MHz
+                | (1 << 16)     // BURST = 1, hardware controlled
+                | ( 0 << 17 );  // CLKS = 0, we stick to 10 bit mode
+
+    pinmap_pinout(pin, PinMap_ADC);
+
+    //Enable the ADC channel
+    LPC_ADC->CR |= (1<<ADCnumber);
+}
+
+unsigned short FastAnalogIn::read_u16( void )
+{
+    unsigned int retval;
+    //If object is enabled return current value of datareg
+    retval = *datareg;
+
+    //Do same thing as standard mbed lib, unused bit 0-3, replicate 4-7 in it
+    retval &= ~0xFFFF003F;
+    retval |= (retval >> 6) & 0x003F;
+    return retval;
+}
 
 class TextLCD : public Stream {
 public:
@@ -212,15 +304,15 @@ int TextLCD::rows() {
 
 TextLCD lcd(dp17, dp18, dp24, dp14, dp26, dp28); // rs, e, d4-d7
 
-AnalogIn adcIns[] = {
-    AnalogIn (dp4), //(dp9), //1114 10bit-adc
-    AnalogIn (dp9),
-    AnalogIn (dp10),
-    AnalogIn (dp11),
+FastAnalogIn adcIns[] = {
+    FastAnalogIn (dp4), //(dp9), //1114 10bit-adc
+    FastAnalogIn (dp9),
+    FastAnalogIn (dp10),
+    FastAnalogIn (dp11),
 };
 const unsigned int adcIns_Size = sizeof(adcIns)/sizeof(*adcIns);
 
-const unsigned int SAMPLE_SIZE = 13; //833us ~= 11*4*rate(19us) // sampling filter so, + 2
+const unsigned int SAMPLE_SIZE = 70; //833us ~= 69*rate(12us) // sampling filter so, + 1
 
 SPISlave device(dp2, dp1, dp6, dp25); // mosi, miso, sclk, ssel
 
@@ -251,7 +343,7 @@ void print_lcd()
     }
 
     char* string2;
-    uint16_t filtered = filter_avg[0] / (SAMPLE_SIZE - 2);
+    uint16_t filtered = filter_avg[0] / (SAMPLE_SIZE - 1);
 
     utoa(filtered, string2, 10);
     for ( unsigned int i = 0; i < strlen((char*)string2); i++ )
@@ -264,7 +356,7 @@ void print_lcd()
         lcd._putc(*" ");
     }
 
-    unsigned int rate = passed_time / ((SAMPLE_SIZE) * adcIns_Size);
+    unsigned int rate = passed_time / (SAMPLE_SIZE);// * adcIns_Size);
     char* string3;
     utoa(rate, string3, 10);
     for ( unsigned int i = 0; i < strlen((char*)string3); i++ )
@@ -290,6 +382,9 @@ int main() {
             {
                 analogHexes[j][i] = adcIns[j].read_u16();  // Get ADC data
             }
+            wait_ns(2000); //40khz = 25us wave//  25/2 = 12.5 // adc 1 micro secs for 1 ch, now 4ch so 4us so 12 - 4 = 8// but 1us => 23 us ?//
+                        //wait_us used timer based so, timer setup time is more than wait_time maybe.
+                        //use wait_ns (clock loop based) // 6000ns => 17 us
         }
         t.stop();
         passed_time = t.read_us();
@@ -303,22 +398,22 @@ int main() {
 
             unsigned short analogHexes_low_pass[SAMPLE_SIZE] = {0};
             //low pass filter
-            for ( unsigned int i = 1; i < (SAMPLE_SIZE - 1); i++ )
+            for ( unsigned int i = 1; i < (SAMPLE_SIZE); i++ )
             {
-                analogHexes_low_pass[i] = ( analogHexes[j][i-1] + analogHexes[j][i] + analogHexes[j][i+1] ) / 3;  // 3 point avg
+                analogHexes_low_pass[i] = ( analogHexes[j][i-1] + analogHexes[j][i] ) / 2;  // 2 point avg
             }
 
             unsigned int sum = 0;
 
-            for ( unsigned int i = 1; i < (SAMPLE_SIZE - 1); i++ )
+            for ( unsigned int i = 1; i < (SAMPLE_SIZE); i++ )
             {
                 sum += analogHexes_low_pass[i];
             }
-            avg[j] = sum / (SAMPLE_SIZE - 2);
+            avg[j] = sum / (SAMPLE_SIZE - 1);
 
             unsigned short analogHexes_high_pass[SAMPLE_SIZE] = {0};
             //high pass filter
-            for ( unsigned int i = 1; i < (SAMPLE_SIZE - 1); i++ )
+            for ( unsigned int i = 1; i < (SAMPLE_SIZE); i++ )
             {
                 if (analogHexes_low_pass[i] > avg[j]) {
                     analogHexes_high_pass[i] = (analogHexes_low_pass[i] - avg[j]);
@@ -330,11 +425,11 @@ int main() {
 
             unsigned int filter_sum = 0;
 
-            for ( unsigned int i = 1; i < (SAMPLE_SIZE - 1); i++ )
+            for ( unsigned int i = 1; i < (SAMPLE_SIZE); i++ )
             {
                 filter_sum += analogHexes_high_pass[i];
             }
-            filter_avg[j] = filter_sum; // / (SAMPLE_SIZE - 2);
+            filter_avg[j] = filter_sum; // / (SAMPLE_SIZE - 1);
             //  1024 * (46 - 2) = 45056 // < uint16_t_max=65535
         }
 
