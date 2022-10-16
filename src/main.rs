@@ -640,16 +640,16 @@ fn main() {
         match read_target_pos_relative{
             Some([x, y]) => {
                 direction_sceta_dig = (2.0 * PI) - (x.atan2(y));
-                power = 0.6;// ball_dist / 100.0;
+                power = 0.7;// ball_dist / 100.0;
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
                 /*
                 direction_sceta_dig = (2.0 * PI) - ((-1.0 * machine_pos[0]).atan2((-1.0 * machine_pos[1])));
-                power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 100.0;
+                power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 10.0;
                 power = power.clamp(0.0, 0.6);
                 */
-
+                
                 power = 0.0;
             },
         }
@@ -727,7 +727,7 @@ fn main() {
         //save motor
         if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
-        let motor: [i8; 3] = [(motor1*100.0) as i8, (motor2*100.0) as i8, (motor3*100.0) as i8]; //should -100 to 100
+        let motor: [i8; 3] = [(motor1*50.0) as i8, (motor2*50.0) as i8, (motor3*50.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
         let cmd = generate_cmd(&motor, &mut cmd_str);
 
