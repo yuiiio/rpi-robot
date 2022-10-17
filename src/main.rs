@@ -143,6 +143,9 @@ fn main() {
     let from_sensor_dir: Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
     let from_sensor_dir_clone = Arc::clone(&from_sensor_dir);
 
+    let dir_sensor_latency: Arc<Mutex<f64>> = Arc::new(Mutex::new(0.0));
+    let dir_sensor_latency_clone = Arc::clone(&dir_sensor_latency);
+
     let _handle2 = thread::spawn(move || {
         //let ten_micros = time::Duration::from_micros(10);
         let mut spi0_0 = Spi::new( Bus::Spi0, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
@@ -161,7 +164,13 @@ fn main() {
         let center_dir: u16 = center_dir;
         //println!("center_dir: {}", center_dir);
 
+        let dir_sensor_now = Instant::now();
+        let mut last_now_time: f64 = 0.0;
+
         loop{
+            let one_cycle_latency: f64 = dir_sensor_now.elapsed().as_secs_f64() - last_now_time;
+            last_now_time = dir_sensor_now.elapsed().as_secs_f64();
+
             let _ret = spi0_0.write( &write_data );
             //thread::sleep(ten_micros);
             let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
@@ -175,6 +184,9 @@ fn main() {
             //println!("centelyzed_dir: {}", centelyzed_dir);
             let mut param = from_sensor_dir_clone.lock().unwrap();
             *param = centelyzed_dir;
+            
+            let mut latency = dir_sensor_latency_clone.lock().unwrap();
+            *latency = one_cycle_latency;
         }
     });
 
@@ -213,7 +225,10 @@ fn main() {
     let ball_pos_relative: Arc<Mutex<Option<[f64; 2]>>> = Arc::new(Mutex::new(Option::None));
     let ball_pos_relative_clone = Arc::clone(&ball_pos_relative);
 
-    const BALL_MAX_DIST: f64 = 100.0;
+    const BALL_MAX_DIST: f64 = 70.0;
+
+    let ball_sensor_latency: Arc<Mutex<f64>> = Arc::new(Mutex::new(0.0));
+    let ball_sensor_latency_clone = Arc::clone(&ball_sensor_latency);
 
     let _handle4 = thread::spawn(move || {
         //let lpc1114_wait = Duration::from_micros(10000);
@@ -236,7 +251,13 @@ fn main() {
         let mut sensor_val_from_slave1: [u16; 4] = [0; 4];
         let mut sensor_val_from_slave2: [u16; 4] = [0; 4];
 
+        let ball_sensor_now = Instant::now();
+        let mut last_now_time: f64 = 0.0;
+
         loop{
+            let one_cycle_latency: f64 = ball_sensor_now.elapsed().as_secs_f64() - last_now_time;
+            last_now_time = ball_sensor_now.elapsed().as_secs_f64();
+
             let _ret = spi1_0.write( &write_data );
             //thread::sleep(lpc1114_wait);
             let _ret = spi1_0.read( &mut read_first_seg ).expect("Failed Spi::read");
@@ -437,6 +458,9 @@ fn main() {
             //println!("ball_dist: {:?}", ball_dist);
             let mut param = ball_pos_relative_clone.lock().unwrap();
             *param = ball_pos_option;
+
+            let mut latency = ball_sensor_latency_clone.lock().unwrap();
+            *latency = one_cycle_latency;
         }
     });
 
@@ -444,12 +468,23 @@ fn main() {
     let machine_pos_clone = Arc::clone(&machine_pos);
 
     let from_sensor_dir_clone2 = Arc::clone(&from_sensor_dir);
+
+    let usb_mouse_latency: Arc<Mutex<f64>> = Arc::new(Mutex::new(0.0));
+    let usb_mouse_latency_clone = Arc::clone(&usb_mouse_latency);
+
     // usb-mouse
     let _handle5 = thread::spawn(move || {
         let mut device = Device::open("/dev/input/by-id/usb-Avago_USB_LaserStream_TM__Mouse-event-mouse").unwrap();
         let mut accum_val :[f64; 2] = [0.0; 2];
         let mut val :[i32; 2] = [0; 2];
-        loop {
+
+        let usb_mouse_now = Instant::now();
+        let mut last_now_time: f64 = 0.0;
+
+        loop{
+            let one_cycle_latency: f64 = usb_mouse_now.elapsed().as_secs_f64() - last_now_time;
+            last_now_time = usb_mouse_now.elapsed().as_secs_f64();
+
             for ev in device.fetch_events().unwrap() {
                 match ev.kind() {
                     InputEventKind::RelAxis(axis) => {
@@ -468,8 +503,13 @@ fn main() {
             let sensor_dir_sin: f64 = sensor_dir_dig.sin();
             let sensor_dir_cos: f64 = sensor_dir_dig.cos();
 
-            let rotate_x:f64 = (val[0] as f64 * sensor_dir_cos) + (val[1] as f64 * (-1.0 * sensor_dir_sin));
-            let rotate_y:f64 = (val[0] as f64 * sensor_dir_sin) + (val[1] as f64 * sensor_dir_cos);
+            //rotate
+            let rotate_x: f64 = (val[0] as f64 * sensor_dir_cos) + (val[1] as f64 * (-1.0 * sensor_dir_sin));
+            let rotate_y: f64 = (val[0] as f64 * sensor_dir_sin) + (val[1] as f64 * sensor_dir_cos);
+
+            //scale
+            let rotate_x: f64 = rotate_x * 0.003;
+            let rotate_y: f64 = rotate_y * 0.003;
 
             accum_val[0] += rotate_x;
             accum_val[1] += rotate_y;
@@ -478,6 +518,9 @@ fn main() {
 
             let mut param = machine_pos_clone.lock().unwrap();
             *param = accum_val;
+            
+            let mut latency = usb_mouse_latency_clone.lock().unwrap();
+            *latency = one_cycle_latency;
         }
     });
 
@@ -490,11 +533,23 @@ fn main() {
     const C_R: f64 = BALL_R + MACHINE_R + MARGIN;
 
     let from_sensor_dir_clone3 = Arc::clone(&from_sensor_dir);
+    let machine_pos_clone2 = Arc::clone(&machine_pos);
+
+    let calc_target_latency: Arc<Mutex<f64>> = Arc::new(Mutex::new(0.0));
+    let calc_target_latency_clone = Arc::clone(&calc_target_latency);
+
     // calc target_pos
     let _handle6 = thread::spawn(move || {
         let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
         let mut previous_target_pos: [f64; 2] = [0.0; 2];
-        loop {
+
+        let calc_target_now = Instant::now();
+        let mut last_now_time: f64 = 0.0;
+
+        loop{
+            let one_cycle_latency: f64 = calc_target_now.elapsed().as_secs_f64() - last_now_time;
+            last_now_time = calc_target_now.elapsed().as_secs_f64();
+
             let mut target_pos_relative_option: Option<[f64; 2]> = Option::None;
 
             let ball_pos: Option<[f64; 2]> = *(ball_pos_relative.lock().unwrap());
@@ -515,8 +570,16 @@ fn main() {
                             (previous_ball_pos[0][1] + previous_ball_pos[1][1] + rotate_y) / 3.0,
                         ];
                         //let ball_pos_now: [f64; 2] = [rotate_x, rotate_y];
+                        
+                        //println!("relative ball_pos: {:?}", ball_pos_now);
 
-                        //println!("ball_pos: {:?}", ball_pos_now);
+                        let machine_pos: [f64; 2] = *(machine_pos_clone2.lock().unwrap());
+                        let absolute_ball_pos: [f64; 2] = [ machine_pos[0] + ball_pos_now[0],
+                                                            machine_pos[1] + ball_pos_now[1], ];
+
+                        //println!("absolute ball_pos: {:?}", absolute_ball_pos);
+                        // should use absolute ball_pos for tracking ?
+                        // btw, test relative pos to track ball.
 
                         // 3 times avg
                         previous_ball_pos[0] = previous_ball_pos[1];
@@ -599,6 +662,9 @@ fn main() {
             //println!("target_point_relative_option: {:?}", target_pos_relative_option);
             let mut param = target_pos_relative_clone.lock().unwrap();
             *param = target_pos_relative_option;
+
+            let mut latency = calc_target_latency_clone.lock().unwrap();
+            *latency = one_cycle_latency;
         }
     });
 
@@ -631,7 +697,6 @@ fn main() {
 
 
         let machine_pos: [f64; 2] = *(machine_pos.lock().unwrap());
-        let machine_pos: [f64; 2] = [machine_pos[0] * 0.01, machine_pos[1] * 0.01];
         //println!("{:?}", machine_pos);
 
         let mut direction_sceta_dig: f64 = 0.0;
@@ -640,17 +705,21 @@ fn main() {
         match read_target_pos_relative{
             Some([x, y]) => {
                 direction_sceta_dig = (2.0 * PI) - (x.atan2(y));
-                power = 0.7;// ball_dist / 100.0;
+                power = 0.8;// ball_dist / 100.0;
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
                 /*
                 direction_sceta_dig = (2.0 * PI) - ((-1.0 * machine_pos[0]).atan2((-1.0 * machine_pos[1])));
                 power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 10.0;
-                power = power.clamp(0.0, 0.6);
+                if power >= 0.2 {
+                    power = power.clamp(0.0, 0.6);
+                } else {
+                    power = 0.0;
+                }
                 */
-                
-                power = 0.0;
+
+                //power = 0.0;
             },
         }
 
@@ -686,7 +755,18 @@ fn main() {
 
         //PID
         let time_after_command: f64 = now.elapsed().as_secs_f64() - last_command_time;
+        last_command_time = now.elapsed().as_secs_f64();
         //println!("time_after_command: {}", time_after_command);
+
+        let dir_sensor_latency_val: f64= *(dir_sensor_latency.lock().unwrap());
+        let ball_sensor_latency_val: f64 = *(ball_sensor_latency.lock().unwrap());
+        let usb_mouse_latency_val: f64 = *(usb_mouse_latency.lock().unwrap());
+        let calc_target_latency_val: f64 = *(calc_target_latency.lock().unwrap());
+
+        //print max latency sum that all sensors;
+        let max_latency: f64 = dir_sensor_latency_val + ball_sensor_latency_val + usb_mouse_latency_val + calc_target_latency_val + time_after_command;
+
+        println!("all max latency: {}", max_latency);
 
         cycle_num += 1;
         if cycle_num > 100 {
@@ -737,8 +817,6 @@ fn main() {
         port.flush().unwrap();
 
         //preval = [ motor1, motor2, motor3 ];
-        // used by PID
-        last_command_time = now.elapsed().as_secs_f64();
     }
 
     let poweroff_all_motor: &[u8; 21] = b"1F0002F0003F0004F000\n";
