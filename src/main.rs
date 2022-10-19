@@ -40,7 +40,7 @@ struct CrossPoint {
     second: [f64; 2], // x, y
 }
 
-fn circle_cross_point(circle1: [f64; 3], circle2: [f64; 3]) -> Option<CrossPoint>
+fn circle_cross_point(circle1: &[f64; 3], circle2: &[f64; 3]) -> Option<CrossPoint>
 {
     let x1: f64 = circle2[0] - circle1[0];
     let y1: f64 = circle2[1] - circle1[1];
@@ -72,9 +72,9 @@ fn circle_cross_point(circle1: [f64; 3], circle2: [f64; 3]) -> Option<CrossPoint
 
 }
 
-fn three_point_circle(point1: [f64; 2], point2: [f64; 2], point3: [f64; 2]) -> [f64; 3] // return
-                                                                                        // circle
-                                                                                        // x, y, r
+fn three_point_circle(point1: &[f64; 2], point2: &[f64; 2], point3: &[f64; 2]) -> [f64; 3]  // return
+                                                                                            // circle
+                                                                                            // x, y, r
 {
     let x1: f64 = point1[0];
     let y1: f64 = point1[1];
@@ -377,7 +377,7 @@ fn main() {
             //println!("circles1: 2*r (dist when dir(ball-sensor).cos == 1): {}", circles[1][2] * 2.0);
             //println!("circles1: pos: x:{}, y:{}", circles[1][0], circles[1][1]);
 
-            let cross_point_a = match circle_cross_point(circles[0], circles[1])
+            let cross_point_a = match circle_cross_point(&circles[0], &circles[1])
             {
                 Some(cross_point) => cross_point,
                 None => { // no cross point , then return half point both circle center
@@ -387,7 +387,7 @@ fn main() {
                 },
             };
 
-            let cross_point_b = match circle_cross_point(circles[1], circles[2])
+            let cross_point_b = match circle_cross_point(&circles[1], &circles[2])
             {
                 Some(cross_point) => cross_point,
                 None => { // no cross point , then return half point both circle center
@@ -397,7 +397,7 @@ fn main() {
                 },
             };
 
-            let cross_point_c = match circle_cross_point(circles[2], circles[0])
+            let cross_point_c = match circle_cross_point(&circles[2], &circles[0])
             {
                 Some(cross_point) => cross_point,
                 None => { // no cross point , then return half point both circle center
@@ -422,7 +422,7 @@ fn main() {
             for i in [cross_point_a.first, cross_point_a.second] {
                 for j in [cross_point_b.first, cross_point_b.second] {
                     for k in [cross_point_c.first, cross_point_c.second] {
-                        let circle_p: [f64; 3] = three_point_circle(i, j, k);
+                        let circle_p: [f64; 3] = three_point_circle(&i, &j, &k);
                         ball_pos = [
                             ball_pos[0] + circle_p[0]*(1.0/8.0),
                             ball_pos[1] + circle_p[1]*(1.0/8.0)
@@ -612,7 +612,7 @@ fn main() {
                             let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
                             let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
 
-                            match circle_cross_point(circle_a, circle_b) {
+                            match circle_cross_point(&circle_a, &circle_b) {
                                 Some(cross_point) => {
                                     let mut target_point: [f64; 2] = [0.0; 2];
                                     let first_point: [f64; 2] = cross_point.first;
@@ -766,7 +766,8 @@ fn main() {
         //print max latency sum that all sensors;
         let max_latency: f64 = dir_sensor_latency_val + ball_sensor_latency_val + usb_mouse_latency_val + calc_target_latency_val + time_after_command;
 
-        println!("all max latency: {}", max_latency);
+        println!("all max latency: {}, dir_sesnsor: {}, ball_sensor: {}, usb_mouse: {}, calc_target: {}, main_loop: {}",
+                max_latency, dir_sensor_latency_val, ball_sensor_latency_val, usb_mouse_latency_val, calc_target_latency_val, time_after_command);
 
         cycle_num += 1;
         if cycle_num > 100 {
