@@ -766,8 +766,8 @@ fn main() {
         //print max latency sum that all sensors;
         let max_latency: f64 = dir_sensor_latency_val + ball_sensor_latency_val + usb_mouse_latency_val + calc_target_latency_val + time_after_command;
 
-        println!("all max latency: {}, dir_sesnsor: {}, ball_sensor: {}, usb_mouse: {}, calc_target: {}, main_loop: {}",
-                max_latency, dir_sensor_latency_val, ball_sensor_latency_val, usb_mouse_latency_val, calc_target_latency_val, time_after_command);
+        //println!("all max latency: {}, dir_sesnsor: {}, ball_sensor: {}, usb_mouse: {}, calc_target: {}, main_loop: {}",
+        //        max_latency, dir_sensor_latency_val, ball_sensor_latency_val, usb_mouse_latency_val, calc_target_latency_val, time_after_command);
 
         cycle_num += 1;
         if cycle_num > 100 {
@@ -808,7 +808,7 @@ fn main() {
         //save motor
         if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
-        let motor: [i8; 3] = [(motor1*50.0) as i8, (motor2*50.0) as i8, (motor3*50.0) as i8]; //should -100 to 100
+        let motor: [i8; 3] = [(motor1*40.0) as i8, (motor2*40.0) as i8, (motor3*40.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
         let cmd = generate_cmd(&motor, &mut cmd_str);
 
