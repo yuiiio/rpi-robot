@@ -121,9 +121,9 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.4;
+    const KP: f64 = 0.3;
     const KI: f64 = 0.0;//10.0;
-    const KD: f64 = 0.00004;
+    const KD: f64 = 0.2;
 
     /*
     let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
