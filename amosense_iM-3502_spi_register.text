@@ -1,0 +1,30 @@
+Register Table
+01(h) DEV_ID R Device ID
+02(h) REVNUM R Revision Number
+03(h) MAG_STATUS R Magnetic Field Status Flag
+04(h)～13(h) - - reserved
+14(h) POWER W Power Down Mode
+15(h)～1F(h) - - reserved
+20(h) AZIMUTH_H R AZIMUTH (MSB)
+21(h) AZIMUTH_L R AZIMUTH (LSB)
+22(h) PITCH_H R PITCH angle (MSB)
+23(h) PITCH_L R PITCH angle (LSB)
+24(h) ROLL_H R ROLL angle (MSB)
+25(h) ROLL_L R ROLL angle (LSB)
+26(h) ACC_XH R Accelerometer X axis (MSB)
+27(h) ACC_XL R Accelerometer X axis (LSB)
+28(h) ACC_YH R Accelerometer Y axis (MSB)
+29(h) ACC_YL R Accelerometer Y axis (LSB)
+2A(h) ACC_ZH R Accelerometer Z axis (MSB)
+2B(h) ACC_ZL R Accelerometer Z axis (LSB)
+2C(h) MAG_XH R Magnetic Sensor X axis (MSB)
+2D(h) MAG_XL R Magnetic Sensor X axis (LSB)
+2E(h) MAG_YH R Magnetic Sensor Y axis (MSB)
+2F(h) MAG_YL R Magnetic Sensor Y axis (LSB)
+30(h) MAG_ZH R Magnetic Sensor Z axis (MSB)
+31(h) MAG_ZL R Magnetic Sensor Z axis (LSB)
+32(h)～4F(h) - - reserved
+50(h) NAVI_MOD W Navigation Mode
+51(h) ACC_CTRL W Accelerometer Control Register
+52(h) ACC_Wakeup W Accelerometer wake up Function
+AA(h) CAL_ACC W Accelerometer Offset Calibration Mode
