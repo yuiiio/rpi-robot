@@ -476,7 +476,6 @@ fn main() {
     let _handle5 = thread::spawn(move || {
         let mut device = Device::open("/dev/input/by-id/usb-Avago_USB_LaserStream_TM__Mouse-event-mouse").unwrap();
         let mut accum_val :[f64; 2] = [0.0; 2];
-        let mut val :[i32; 2] = [0; 2];
 
         let usb_mouse_now = Instant::now();
         let mut last_now_time: f64 = 0.0;
@@ -485,6 +484,7 @@ fn main() {
             let one_cycle_latency: f64 = usb_mouse_now.elapsed().as_secs_f64() - last_now_time;
             last_now_time = usb_mouse_now.elapsed().as_secs_f64();
 
+            let mut val :[i32; 2] = [0; 2];
             for ev in device.fetch_events().unwrap() {
                 match ev.kind() {
                     InputEventKind::RelAxis(axis) => {
