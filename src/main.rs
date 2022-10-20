@@ -683,6 +683,8 @@ fn main() {
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
 
+    let mut pre_machine_pos: [f64; 2] = [0.0, 0.0];
+
     // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
@@ -699,6 +701,11 @@ fn main() {
         let machine_pos: [f64; 2] = *(machine_pos.lock().unwrap());
         //println!("{:?}", machine_pos);
 
+        let diff_pre_now_machine_pos: [f64; 2] = [machine_pos[0] - pre_machine_pos[0], machine_pos[1] - pre_machine_pos[1]];
+
+        pre_machine_pos = machine_pos;
+
+
         let mut direction_sceta_dig: f64 = 0.0;
         let mut power: f64 = 0.0;
 
@@ -709,7 +716,6 @@ fn main() {
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
-                /*
                 direction_sceta_dig = (2.0 * PI) - ((-1.0 * machine_pos[0]).atan2((-1.0 * machine_pos[1])));
                 power = (machine_pos[0].powi(2) + machine_pos[1].powi(2)).sqrt() / 10.0;
                 if power >= 0.2 {
@@ -717,7 +723,6 @@ fn main() {
                 } else {
                     power = 0.0;
                 }
-                */
 
                 //power = 0.0;
             },
@@ -766,8 +771,13 @@ fn main() {
         //print max latency sum that all sensors;
         let max_latency: f64 = dir_sensor_latency_val + ball_sensor_latency_val + usb_mouse_latency_val + calc_target_latency_val + time_after_command;
 
-        println!("all max latency: {}, dir_sesnsor: {}, ball_sensor: {}, usb_mouse: {}, calc_target: {}, main_loop: {}",
-                max_latency, dir_sensor_latency_val, ball_sensor_latency_val, usb_mouse_latency_val, calc_target_latency_val, time_after_command);
+        //println!("all max latency: {}, dir_sesnsor: {}, ball_sensor: {}, usb_mouse: {}, calc_target: {}, main_loop: {}",
+        //        max_latency, dir_sensor_latency_val, ball_sensor_latency_val, usb_mouse_latency_val, calc_target_latency_val, time_after_command);
+
+        let machine_move_len: f64 = (diff_pre_now_machine_pos[0].powi(2) + diff_pre_now_machine_pos[1].powi(2)).sqrt();
+        //println!("machine move from pre: {}", machine_move_len);
+        let machine_real_speed: f64 = machine_move_len / time_after_command;
+        println!("machine real speed: {}", machine_real_speed);
 
         cycle_num += 1;
         if cycle_num > 100 {
