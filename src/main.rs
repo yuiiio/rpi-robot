@@ -777,12 +777,7 @@ fn main() {
         let machine_move_len: f64 = (diff_pre_now_machine_pos[0].powi(2) + diff_pre_now_machine_pos[1].powi(2)).sqrt();
         //println!("machine move from pre: {}", machine_move_len);
         let machine_real_speed: f64 = machine_move_len / time_after_command;
-        //println!("machine real speed: {}", machine_real_speed);
-
-        let target_speed_max: f64 = 40.0;
-        let target_speed: f64 = target_speed_max * power; // power => 0.0~1.0
-        let speed_diff: f64 = target_speed - machine_real_speed;
-        power += speed_diff / target_speed_max;
+        println!("machine real speed: {}", machine_real_speed);
 
         cycle_num += 1;
         if cycle_num > 100 {
@@ -823,7 +818,7 @@ fn main() {
         //save motor
         if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
-        let motor: [i8; 3] = [(motor1*100.0) as i8, (motor2*100.0) as i8, (motor3*100.0) as i8]; //should -100 to 100
+        let motor: [i8; 3] = [(motor1*50.0) as i8, (motor2*50.0) as i8, (motor3*50.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
         let cmd = generate_cmd(&motor, &mut cmd_str);
 
