@@ -540,7 +540,8 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        let mut previous_ball_pos: [[f64; 2]; 2] = [[0.0; 2]; 2];
+        const PRE_SAMPLE_SIZE: usize = 50;
+        let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
         let mut previous_target_pos: [f64; 2] = [0.0; 2];
 
         let calc_target_now = Instant::now();
@@ -565,25 +566,28 @@ fn main() {
                         let rotate_x:f64 = (x * sensor_dir_cos) + (y * (-1.0 * sensor_dir_sin));
                         let rotate_y:f64 = (x * sensor_dir_sin) + (y * sensor_dir_cos);
 
-                        let ball_pos_now: [f64; 2] = [ // three times average
-                            (previous_ball_pos[0][0] + previous_ball_pos[1][0] + rotate_x) / 3.0,
-                            (previous_ball_pos[0][1] + previous_ball_pos[1][1] + rotate_y) / 3.0,
-                        ];
-                        //let ball_pos_now: [f64; 2] = [rotate_x, rotate_y];
-                        
+                        let relative_ball_pos_now: [f64; 2] = [rotate_x, rotate_y];
                         //println!("relative ball_pos: {:?}", ball_pos_now);
 
+                        // calc absolute_ball_pos
                         let machine_pos: [f64; 2] = *(machine_pos_clone2.lock().unwrap());
-                        let absolute_ball_pos: [f64; 2] = [ machine_pos[0] + ball_pos_now[0],
-                                                            machine_pos[1] + ball_pos_now[1], ];
+                        let absolute_ball_pos: [f64; 2] = [ machine_pos[0] + relative_ball_pos_now[0],
+                                                            machine_pos[1] + relative_ball_pos_now[1], ];
+                        // record previous absolute ball pos
+                        for i in (1..PRE_SAMPLE_SIZE).rev()
+                        {
+                            previous_ball_pos[i] = previous_ball_pos[i - 1];
+                        }
+                        previous_ball_pos[0] = absolute_ball_pos;
 
-                        //println!("absolute ball_pos: {:?}", absolute_ball_pos);
-                        // should use absolute ball_pos for tracking ?
-                        // btw, test relative pos to track ball.
+                        let absolute_ball_pos_now: [f64; 2] = [ // three times average
+                            (previous_ball_pos[2][0] + previous_ball_pos[1][0] + previous_ball_pos[0][0]) / 3.0,
+                            (previous_ball_pos[2][1] + previous_ball_pos[1][1] + previous_ball_pos[0][1]) / 3.0,
+                        ];
 
-                        // 3 times avg
-                        previous_ball_pos[0] = previous_ball_pos[1];
-                        previous_ball_pos[1] = ball_pos_now;
+                        println!("absolute_ball_pos_now: {:?}", absolute_ball_pos_now);
+
+                        let ball_pos_now: [f64; 2] =  [absolute_ball_pos_now[0] - machine_pos[0], absolute_ball_pos_now[1] - machine_pos[1]];
 
                         let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
                         let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
