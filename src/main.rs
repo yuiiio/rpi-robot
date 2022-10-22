@@ -540,7 +540,9 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        const PRE_SAMPLE_SIZE: usize = 50;
+        const PRE_SAMPLE_SIZE: usize = 500;
+        const MACHIME_SPEED: f64 = 100.0;
+
         let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
         let mut previous_target_pos: [f64; 2] = [0.0; 2];
 
@@ -585,6 +587,12 @@ fn main() {
                         ];
                         //println!("absolute_ball_pos_now: {:?}", absolute_ball_pos_now);
                         
+                        // calc relative pos
+                        let relative_ball_pos_now: [f64; 2] =  [
+                            absolute_ball_pos_now[0] - machine_pos[0],
+                            absolute_ball_pos_now[1] - machine_pos[1], 
+                        ];
+                        
                         //uniform linear mortion trajectory
                         let mut b1: [f64; 2] = [0.0; 2];
                         for i in 0..PRE_SAMPLE_SIZE
@@ -596,30 +604,47 @@ fn main() {
                         b1[1] = b1[1] / (PRE_SAMPLE_SIZE as f64); // b1 sample avg
                         let b1_sample_point: usize = (PRE_SAMPLE_SIZE / 2) as usize;
                         let b1_to_b2_time: f64 = (b1_sample_point as f64) * one_cycle_latency;
-                        let b2: [f64; 2] = previous_ball_pos[0];
+                        let b2: [f64; 2] = absolute_ball_pos_now;//previous_ball_pos[0];
 
                         let ball_motion_vec: [f64; 2] = [
                             b2[0] - b1[0],
                             b2[1] - b1[1], 
                         ];
-
-                        let ball_speed: f64 = ((ball_motion_vec[0].powi(2) + ball_motion_vec[1].powi(2)).sqrt()) / b1_to_b2_time;
+                        let ball_motion_vec_length: f64 = (ball_motion_vec[0].powi(2) + ball_motion_vec[1].powi(2)).sqrt();
+                        let ball_speed: f64 = ball_motion_vec_length / b1_to_b2_time;
                         //println!("ball_motion_vec: {:?}, ball_speed: {}", ball_motion_vec, ball_speed);
+                        let ball_motion_vec_norm: [f64; 2] = [
+                            ball_motion_vec[0] / ball_motion_vec_length,
+                            ball_motion_vec[1] / ball_motion_vec_length,
+                        ];
+                        
+                        let ball_motion_vec_norm_and_rev_ball_vec_cross: f64 = 
+                            (ball_motion_vec_norm[0] * -1.0 * relative_ball_pos_now[0]) + (ball_motion_vec_norm[1] * -1.0 * relative_ball_pos_now[1]);
 
+                        let relative_ball_dist_pow2: f64 = relative_ball_pos_now[0].powi(2) + relative_ball_pos_now[1].powi(2);
+ 
+                        let a: f64 = ball_speed.powi(2) - MACHIME_SPEED.powi(2);
+                        let b: f64 = -2.0 * ball_speed * ball_motion_vec_norm_and_rev_ball_vec_cross;
+                        let c: f64 = relative_ball_dist_pow2;
 
-                        // calc relative pos
-                        let ball_pos_now: [f64; 2] =  [ absolute_ball_pos_now[0] - machine_pos[0],
-                                                        absolute_ball_pos_now[1] - machine_pos[1], ];
+                        let d: f64 = b.powi(2) - (4.0 * a * c);
+                        if (d >= 0.0)
+                        {
+                        } else {
+                            // set target_ball_pos to [0,0] + ball_motion_vec dir
+                        }
 
-                        let ball_dir: f64 = (2.0 * PI) - (ball_pos_now[0].atan2(ball_pos_now[1]));
-                        let ball_dist: f64 = (ball_pos_now[0].powi(2) + ball_pos_now[1].powi(2)).sqrt();
+                        //let target_ball_pos: [f64; 2] = relative_ball_pos_now;
+                        
+                        let ball_dir: f64 = (2.0 * PI) - (target_ball_pos[0].atan2(target_ball_pos[1]));
+                        let ball_dist: f64 = (target_ball_pos[0].powi(2) + target_ball_pos[1].powi(2)).sqrt();
 
                         let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
                         // calc target pos for football game
                         if (ball_dir - enemy_goal_dir).cos()  > 0.5 {
                             //target enemy goal
-                            target_pos_relative_option = Option::Some(ball_pos_now);
+                            target_pos_relative_option = Option::Some(target_ball_pos);
                         } else {
                             // wraparound
                             let own_goal_dir: f64 = PI; // relative to ball coordinates
@@ -628,15 +653,15 @@ fn main() {
                             let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
 
                             let ball_dist_clamp: f64 = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
-                            let ball_pos_now: [f64; 2] = [
-                                ball_pos_now[0]*ball_dist_clamp/ball_dist, 
-                                ball_pos_now[1]*ball_dist_clamp/ball_dist, 
+                            let target_ball_pos: [f64; 2] = [
+                                target_ball_pos[0]*ball_dist_clamp/ball_dist, 
+                                target_ball_pos[1]*ball_dist_clamp/ball_dist, 
                             ];
 
                             let machine_c_r: f64 = (ball_dist_clamp.powi(2) - C_R.powi(2)).sqrt();
 
                             let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
-                            let circle_b: [f64; 3] = [ball_pos_now[0], ball_pos_now[1], C_R]; //ball relative position
+                            let circle_b: [f64; 3] = [target_ball_pos[0], target_ball_pos[1], C_R]; //ball relative position
 
                             match circle_cross_point(&circle_a, &circle_b) {
                                 Some(cross_point) => {
@@ -644,11 +669,11 @@ fn main() {
                                     let first_point: [f64; 2] = cross_point.first;
                                     let second_point: [f64; 2] = cross_point.second;
 
-                                    let ball_first_point: [f64; 2] = [ball_pos_now[0] - first_point[0], ball_pos_now[1] - first_point[1]];
+                                    let ball_first_point: [f64; 2] = [target_ball_pos[0] - first_point[0], target_ball_pos[1] - first_point[1]];
                                     let ball_first_point_normal: [f64; 2] = [ball_first_point[0] / C_R, ball_first_point[1] / C_R];
                                     let cos_ball_first_point_own_goal: f64 =  ball_first_point_normal[0]*own_goal_vec[0] + ball_first_point_normal[1]*own_goal_vec[1];
 
-                                    let ball_second_point: [f64; 2] = [ball_pos_now[0] - second_point[0], ball_pos_now[1] - second_point[1]];
+                                    let ball_second_point: [f64; 2] = [target_ball_pos[0] - second_point[0], target_ball_pos[1] - second_point[1]];
                                     let ball_second_point_normal: [f64; 2] = [ball_second_point[0] / C_R, ball_second_point[1] / C_R];
                                     let cos_ball_second_point_own_goal: f64 =  ball_second_point_normal[0]*own_goal_vec[0] + ball_second_point_normal[1]*own_goal_vec[1];
 
