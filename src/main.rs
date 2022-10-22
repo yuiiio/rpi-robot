@@ -540,7 +540,7 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        const PRE_SAMPLE_SIZE: usize = 500;
+        const PRE_SAMPLE_SIZE: usize = 1000;
         const MACHIME_SPEED: f64 = 100.0;
 
         let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
@@ -627,78 +627,118 @@ fn main() {
                         let b: f64 = -2.0 * ball_speed * ball_motion_vec_norm_and_rev_ball_vec_cross;
                         let c: f64 = relative_ball_dist_pow2;
 
+                        let mut skip_flag: bool = false;
                         let d: f64 = b.powi(2) - (4.0 * a * c);
-                        if (d >= 0.0)
+                        let mut t: f64 = 0.0;
+                        if d >= 0.0
                         {
+                            let t1 = ( (-1.0 * b) + d.sqrt() ) / (2.0 * a);
+                            let t2 = ( (-1.0 * b) - d.sqrt() ) / (2.0 * a);
+
+                            if t1 < 0.0 && t2 < 0.0 {
+                                // same as below skip state
+                                skip_flag = true;
+                            } else if t1 < 0.0 {
+                                t = t2;
+                            } else if t2 < 0.0 {
+                                t = t1;
+                            } else { // t1 >=0.0 && t2 >= 0.0
+                                if t1 > t2 {
+                                    t = t2;
+                                } else {
+                                    t = t1;
+                                }
+                            }
                         } else {
-                            // set target_ball_pos to [0,0] + ball_motion_vec dir
+                            // if d < 0 or not exist t >= 0 val,
+                            //
+                            // should skip target_ball_pos, set target_poit to [0,0] + ball_motion_vec dir ?
+                            skip_flag = true;
                         }
 
-                        //let target_ball_pos: [f64; 2] = relative_ball_pos_now;
-                        
-                        let ball_dir: f64 = (2.0 * PI) - (target_ball_pos[0].atan2(target_ball_pos[1]));
-                        let ball_dist: f64 = (target_ball_pos[0].powi(2) + target_ball_pos[1].powi(2)).sqrt();
+                        if skip_flag == true {
+                            // ignore t
+                            let target_point: [f64; 2]= ball_motion_vec; //should use norm val? //use only dir
 
-                        let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
+                            let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
+                            let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
 
-                        // calc target pos for football game
-                        if (ball_dir - enemy_goal_dir).cos()  > 0.5 {
-                            //target enemy goal
-                            target_pos_relative_option = Option::Some(target_ball_pos);
+                            let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
+                            //println!("target_pos_rotate: {:?}", target_pos_rotate);
+                            target_pos_relative_option = Option::Some(target_pos_rotate);
+                            previous_target_pos = target_pos_rotate;
                         } else {
-                            // wraparound
-                            let own_goal_dir: f64 = PI; // relative to ball coordinates
-
-                            let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
-                            let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
-
-                            let ball_dist_clamp: f64 = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
-                            let target_ball_pos: [f64; 2] = [
-                                target_ball_pos[0]*ball_dist_clamp/ball_dist, 
-                                target_ball_pos[1]*ball_dist_clamp/ball_dist, 
+                            // calc based t
+                            let mut target_ball_pos: [f64; 2] =  relative_ball_pos_now;
+                            target_ball_pos = [
+                                target_ball_pos[0] + (ball_motion_vec_norm[0] * t),
+                                target_ball_pos[1] + (ball_motion_vec_norm[1] * t),
                             ];
 
-                            let machine_c_r: f64 = (ball_dist_clamp.powi(2) - C_R.powi(2)).sqrt();
+                            let ball_dir: f64 = (2.0 * PI) - (target_ball_pos[0].atan2(target_ball_pos[1]));
+                            let ball_dist: f64 = (target_ball_pos[0].powi(2) + target_ball_pos[1].powi(2)).sqrt();
 
-                            let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
-                            let circle_b: [f64; 3] = [target_ball_pos[0], target_ball_pos[1], C_R]; //ball relative position
+                            let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
-                            match circle_cross_point(&circle_a, &circle_b) {
-                                Some(cross_point) => {
-                                    let mut target_point: [f64; 2] = [0.0; 2];
-                                    let first_point: [f64; 2] = cross_point.first;
-                                    let second_point: [f64; 2] = cross_point.second;
+                            // calc target pos for football game
+                            if (ball_dir - enemy_goal_dir).cos()  > 0.5 {
+                                //target enemy goal
+                                target_pos_relative_option = Option::Some(target_ball_pos);
+                            } else {
+                                // wraparound
+                                let own_goal_dir: f64 = PI; // relative to ball coordinates
 
-                                    let ball_first_point: [f64; 2] = [target_ball_pos[0] - first_point[0], target_ball_pos[1] - first_point[1]];
-                                    let ball_first_point_normal: [f64; 2] = [ball_first_point[0] / C_R, ball_first_point[1] / C_R];
-                                    let cos_ball_first_point_own_goal: f64 =  ball_first_point_normal[0]*own_goal_vec[0] + ball_first_point_normal[1]*own_goal_vec[1];
+                                let own_goal_vec: [f64; 2] = [own_goal_dir.sin(), own_goal_dir.cos()];
+                                let enemy_goal_vec: [f64; 2] = [enemy_goal_dir.sin(), enemy_goal_dir.cos()];
 
-                                    let ball_second_point: [f64; 2] = [target_ball_pos[0] - second_point[0], target_ball_pos[1] - second_point[1]];
-                                    let ball_second_point_normal: [f64; 2] = [ball_second_point[0] / C_R, ball_second_point[1] / C_R];
-                                    let cos_ball_second_point_own_goal: f64 =  ball_second_point_normal[0]*own_goal_vec[0] + ball_second_point_normal[1]*own_goal_vec[1];
+                                let ball_dist_clamp: f64 = ball_dist.clamp(C_R+1.0, BALL_MAX_DIST);
+                                let target_ball_pos: [f64; 2] = [
+                                    target_ball_pos[0]*ball_dist_clamp/ball_dist, 
+                                    target_ball_pos[1]*ball_dist_clamp/ball_dist, 
+                                ];
 
-                                    //avoid own goal
-                                    if cos_ball_first_point_own_goal < cos_ball_second_point_own_goal {
-                                        target_point = first_point;
-                                    } else {
-                                        target_point = second_point;
-                                    }
+                                let machine_c_r: f64 = (ball_dist_clamp.powi(2) - C_R.powi(2)).sqrt();
 
-                                    let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
-                                    let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
+                                let circle_a: [f64; 3] = [0.0, 0.0, machine_c_r]; //machine relative position 
+                                let circle_b: [f64; 3] = [target_ball_pos[0], target_ball_pos[1], C_R]; //ball relative position
 
-                                    let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
-                                    //println!("target_pos_rotate: {:?}", target_pos_rotate);
-                                    target_pos_relative_option = Option::Some(target_pos_rotate);
-                                    previous_target_pos = target_pos_rotate;
-                                },
-                                None => {
-                                    // not expect in this case;
-                                    println!("some thing wrong");
-                                    println!("circle_a: {:?}", circle_a);
-                                    println!("circle_b: {:?}", circle_b);
-                                },
-                            };
+                                match circle_cross_point(&circle_a, &circle_b) {
+                                    Some(cross_point) => {
+                                        let mut target_point: [f64; 2] = [0.0; 2];
+                                        let first_point: [f64; 2] = cross_point.first;
+                                        let second_point: [f64; 2] = cross_point.second;
+
+                                        let ball_first_point: [f64; 2] = [target_ball_pos[0] - first_point[0], target_ball_pos[1] - first_point[1]];
+                                        let ball_first_point_normal: [f64; 2] = [ball_first_point[0] / C_R, ball_first_point[1] / C_R];
+                                        let cos_ball_first_point_own_goal: f64 =  ball_first_point_normal[0]*own_goal_vec[0] + ball_first_point_normal[1]*own_goal_vec[1];
+
+                                        let ball_second_point: [f64; 2] = [target_ball_pos[0] - second_point[0], target_ball_pos[1] - second_point[1]];
+                                        let ball_second_point_normal: [f64; 2] = [ball_second_point[0] / C_R, ball_second_point[1] / C_R];
+                                        let cos_ball_second_point_own_goal: f64 =  ball_second_point_normal[0]*own_goal_vec[0] + ball_second_point_normal[1]*own_goal_vec[1];
+
+                                        //avoid own goal
+                                        if cos_ball_first_point_own_goal < cos_ball_second_point_own_goal {
+                                            target_point = first_point;
+                                        } else {
+                                            target_point = second_point;
+                                        }
+
+                                        let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
+                                        let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
+
+                                        let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
+                                        //println!("target_pos_rotate: {:?}", target_pos_rotate);
+                                        target_pos_relative_option = Option::Some(target_pos_rotate);
+                                        previous_target_pos = target_pos_rotate;
+                                    },
+                                    None => {
+                                        // not expect in this case;
+                                        println!("some thing wrong");
+                                        println!("circle_a: {:?}", circle_a);
+                                        println!("circle_b: {:?}", circle_b);
+                                    },
+                                };
+                            }
                         }
                     } else { //ball_pos x, y is not normal
                         //target_pos_relative_option = Option::None;
