@@ -121,9 +121,9 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.3;
+    const KP: f64 = 0.6;
     const KI: f64 = 0.0;//10.0;
-    const KD: f64 = 0.2;
+    const KD: f64 = 0.1;
 
     /*
     let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
@@ -540,11 +540,13 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        const PRE_SAMPLE_SIZE: usize = 5000;
+        const PRE_SAMPLE_SIZE: usize = 500;
         const MACHINE_SPEED: f64 = 100.0;
 
         let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
-        let mut previous_target_pos: [f64; 2] = [0.0; 2];
+
+        const TARGET_SAMPLE_SIZE: usize = 10;
+        let mut previous_target_pos: [[f64; 2]; TARGET_SAMPLE_SIZE]= [[0.0; 2]; TARGET_SAMPLE_SIZE];
 
         let calc_target_now = Instant::now();
         let mut last_now_time: f64 = 0.0;
@@ -656,6 +658,8 @@ fn main() {
                             skip_flag = true;
                         }
 
+                        let mut target_pos_rotate: [f64; 2] = [0.0; 2];
+
                         if skip_flag == true {
                             // ignore t
                             let target_point: [f64; 2]= ball_motion_vec; //should use norm val? //use only dir
@@ -663,10 +667,7 @@ fn main() {
                             let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
                             let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
 
-                            let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
-                            //println!("target_pos_rotate: {:?}", target_pos_rotate);
-                            target_pos_relative_option = Option::Some(target_pos_rotate);
-                            previous_target_pos = target_pos_rotate;
+                            target_pos_rotate = [target_pos_rotate_x, target_pos_rotate_y];
                         } else {
                             // calc based t
                             let mut target_ball_pos: [f64; 2] =  relative_ball_pos_now;
@@ -681,7 +682,7 @@ fn main() {
                             let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
                             // calc target pos for football game
-                            if (ball_dir - enemy_goal_dir).cos()  > 0.5 {
+                            if (ball_dir - enemy_goal_dir).cos()  > 0.7 {
                                 //target enemy goal
                                 target_pos_relative_option = Option::Some(target_ball_pos);
                             } else {
@@ -726,10 +727,7 @@ fn main() {
                                         let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
                                         let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
 
-                                        let target_pos_rotate: [f64; 2] = [target_pos_rotate_x, target_pos_rotate_y];
-                                        //println!("target_pos_rotate: {:?}", target_pos_rotate);
-                                        target_pos_relative_option = Option::Some(target_pos_rotate);
-                                        previous_target_pos = target_pos_rotate;
+                                        target_pos_rotate = [target_pos_rotate_x, target_pos_rotate_y];
                                     },
                                     None => {
                                         // not expect in this case;
@@ -740,9 +738,26 @@ fn main() {
                                 };
                             }
                         }
+                        // record previous target pos
+                        for i in (1..TARGET_SAMPLE_SIZE).rev()
+                        {
+                            previous_target_pos[i] = previous_target_pos[i - 1];
+                        }
+                        previous_target_pos[0] = target_pos_rotate;
+
+                        let previous_target_pos_three_avg: [f64; 2] = [ // three times average
+                            (previous_target_pos[2][0] + previous_target_pos[1][0] + previous_target_pos[0][0]) / 3.0,
+                            (previous_target_pos[2][1] + previous_target_pos[1][1] + previous_target_pos[0][1]) / 3.0,
+                        ];
+                        target_pos_relative_option = Option::Some(previous_target_pos_three_avg);
                     } else { //ball_pos x, y is not normal
                         //target_pos_relative_option = Option::None;
-                        target_pos_relative_option = Option::Some(previous_target_pos);
+
+                        let previous_target_pos_three_avg: [f64; 2] = [ // three times average
+                            (previous_target_pos[2][0] + previous_target_pos[1][0] + previous_target_pos[0][0]) / 3.0,
+                            (previous_target_pos[2][1] + previous_target_pos[1][1] + previous_target_pos[0][1]) / 3.0,
+                        ];
+                        target_pos_relative_option = Option::Some(previous_target_pos_three_avg);
                     }
                 },
                 None => {
