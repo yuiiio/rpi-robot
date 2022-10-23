@@ -540,8 +540,8 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        const PRE_SAMPLE_SIZE: usize = 1000;
-        const MACHIME_SPEED: f64 = 100.0;
+        const PRE_SAMPLE_SIZE: usize = 5000;
+        const MACHINE_SPEED: f64 = 100.0;
 
         let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
         let mut previous_target_pos: [f64; 2] = [0.0; 2];
@@ -623,7 +623,7 @@ fn main() {
 
                         let relative_ball_dist_pow2: f64 = relative_ball_pos_now[0].powi(2) + relative_ball_pos_now[1].powi(2);
  
-                        let a: f64 = ball_speed.powi(2) - MACHIME_SPEED.powi(2);
+                        let a: f64 = ball_speed.powi(2) - MACHINE_SPEED.powi(2);
                         let b: f64 = -2.0 * ball_speed * ball_motion_vec_norm_and_rev_ball_vec_cross;
                         let c: f64 = relative_ball_dist_pow2;
 
