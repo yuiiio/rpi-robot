@@ -508,8 +508,8 @@ fn main() {
             let rotate_y: f64 = (val[0] as f64 * sensor_dir_sin) + (val[1] as f64 * sensor_dir_cos);
 
             //scale
-            let rotate_x: f64 = rotate_x * 0.003;
-            let rotate_y: f64 = rotate_y * 0.003;
+            let rotate_x: f64 = rotate_x * 0.002;
+            let rotate_y: f64 = rotate_y * 0.002;
 
             accum_val[0] += rotate_x;
             accum_val[1] += rotate_y;
@@ -658,6 +658,7 @@ fn main() {
 
                         if skip_flag == true {
                             // ignore t
+                            //println!("outof scope of machine_speed");
                             let target_point: [f64; 2]= ball_motion_vec; //should use norm val? //use only dir
 
                             let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
@@ -669,6 +670,7 @@ fn main() {
                             previous_target_pos = target_pos_rotate;
                         } else {
                             // calc based t
+                            //println!("t: {}", t);
                             let mut target_ball_pos: [f64; 2] =  relative_ball_pos_now;
                             target_ball_pos = [
                                 target_ball_pos[0] + (ball_motion_vec_norm[0] * t),
@@ -681,7 +683,7 @@ fn main() {
                             let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
                             // calc target pos for football game
-                            if (ball_dir - enemy_goal_dir).cos()  > 0.5 {
+                            if (ball_dir - enemy_goal_dir).cos()  > 0.6 {
                                 //target enemy goal
                                 target_pos_relative_option = Option::Some(target_ball_pos);
                             } else {
@@ -796,7 +798,7 @@ fn main() {
         match read_target_pos_relative{
             Some([x, y]) => {
                 direction_sceta_dig = (2.0 * PI) - (x.atan2(y));
-                power = 0.8;// ball_dist / 100.0;
+                power = 1.0;// ball_dist / 100.0;
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
