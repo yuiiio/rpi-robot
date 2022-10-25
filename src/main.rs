@@ -659,7 +659,8 @@ fn main() {
                         if skip_flag == true {
                             // ignore t
                             //println!("outof scope of machine_speed");
-                            let target_point: [f64; 2]= ball_motion_vec; //should use norm val? //use only dir
+                            //let target_point: [f64; 2]= ball_motion_vec; //should use norm val? //use only dir
+                            let target_point: [f64; 2]= [ ball_motion_vec_norm[0] * BALL_MAX_DIST, ball_motion_vec_norm[1] * BALL_MAX_DIST ];
 
                             let target_pos_rotate_x:f64 = (target_point[0] * sensor_dir_cos) + (target_point[1] * -1.0 * (-1.0 * sensor_dir_sin));
                             let target_pos_rotate_y:f64 = (target_point[0] * -1.0 * sensor_dir_sin) + (target_point[1] * sensor_dir_cos);
@@ -776,6 +777,9 @@ fn main() {
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
 
+    const READ_TARGET_SAMPLE_SIZE: usize = 3;
+    let mut previous_read_target_pos: [[f64; 2]; READ_TARGET_SAMPLE_SIZE] = [[0.0; 2]; READ_TARGET_SAMPLE_SIZE];
+
     // start main loop
     'outer: loop {
         let pin_val = *(program_switch.lock().unwrap());
@@ -788,7 +792,6 @@ fn main() {
 
         let read_target_pos_relative: Option<[f64; 2]> = *(target_pos_relative.lock().unwrap());
 
-
         let machine_pos: [f64; 2] = *(machine_pos.lock().unwrap());
         //println!("{:?}", machine_pos);
 
@@ -797,7 +800,25 @@ fn main() {
 
         match read_target_pos_relative{
             Some([x, y]) => {
-                direction_sceta_dig = (2.0 * PI) - (x.atan2(y));
+                let target_pos: [f64; 2] = [x, y];
+                // record
+                for i in (1..READ_TARGET_SAMPLE_SIZE).rev()
+                {
+                    previous_read_target_pos[i] = previous_read_target_pos[i - 1];
+                }
+                previous_read_target_pos[0] = target_pos;
+
+                let mut avg_pos: [f64; 2] = [0.0; 2];
+                // avg
+                for i in 0..READ_TARGET_SAMPLE_SIZE
+                {
+                    avg_pos[0] += previous_read_target_pos[i][0];
+                    avg_pos[1] += previous_read_target_pos[i][1];
+                }
+                avg_pos[0] = avg_pos[0] / (READ_TARGET_SAMPLE_SIZE as f64);
+                avg_pos[1] = avg_pos[1] / (READ_TARGET_SAMPLE_SIZE as f64);
+
+                direction_sceta_dig = (2.0 * PI) - (avg_pos[0].atan2(avg_pos[1]));
                 power = 1.0;// ball_dist / 100.0;
             },
             None => {
