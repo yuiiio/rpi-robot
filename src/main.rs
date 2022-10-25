@@ -581,10 +581,22 @@ fn main() {
                         }
                         previous_ball_pos[0] = absolute_ball_pos;
 
+                        /*
                         let absolute_ball_pos_now: [f64; 2] = [ // three times average
                             (previous_ball_pos[2][0] + previous_ball_pos[1][0] + previous_ball_pos[0][0]) / 3.0,
                             (previous_ball_pos[2][1] + previous_ball_pos[1][1] + previous_ball_pos[0][1]) / 3.0,
                         ];
+                        */
+                        const BALL_POS_SAMPLE_SIZE: usize = 3;
+                        let mut absolute_ball_pos_now: [f64; 2] = [0.0; 2];
+                        // avg
+                        for i in 0..BALL_POS_SAMPLE_SIZE
+                        {
+                            absolute_ball_pos_now[0] += previous_ball_pos[i][0];
+                            absolute_ball_pos_now[1] += previous_ball_pos[i][1];
+                        }
+                        absolute_ball_pos_now[0] = absolute_ball_pos_now[0] / (BALL_POS_SAMPLE_SIZE as f64);
+                        absolute_ball_pos_now[1] = absolute_ball_pos_now[1] / (BALL_POS_SAMPLE_SIZE as f64);
                         //println!("absolute_ball_pos_now: {:?}", absolute_ball_pos_now);
                         
                         // calc relative pos
@@ -684,7 +696,7 @@ fn main() {
                             let enemy_goal_dir: f64 = 0.0; // relative to ball coordinates
 
                             // calc target pos for football game
-                            if (ball_dir - enemy_goal_dir).cos()  > 0.6 {
+                            if (ball_dir - enemy_goal_dir).cos()  > 0.8 {
                                 //target enemy goal
                                 target_pos_relative_option = Option::Some(target_ball_pos);
                             } else {
