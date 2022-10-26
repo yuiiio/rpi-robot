@@ -789,7 +789,7 @@ fn main() {
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
 
-    const READ_TARGET_SAMPLE_SIZE: usize = 3;
+    const READ_TARGET_SAMPLE_SIZE: usize = 10;
     let mut previous_read_target_pos: [[f64; 2]; READ_TARGET_SAMPLE_SIZE] = [[0.0; 2]; READ_TARGET_SAMPLE_SIZE];
 
     // start main loop
