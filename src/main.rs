@@ -164,14 +164,14 @@ fn main() {
         let center_dir: u16 = center_dir;
         //println!("center_dir: {}", center_dir);
         
+        /*
         //x,y :accel data
         let xaccel_write_data: Vec<u8> = vec![0x26];
         let yaccel_write_data: Vec<u8> = vec![0x28];
-
         let mut xspeed: f64 = 0.0;
         let mut yspeed: f64 = 0.0;
-
         let mut accel_based_machine_pos:[f64; 2] = [0.0; 2];
+        */
 
         let dir_sensor_now = Instant::now();
         let mut last_now_time: f64 = 0.0;
@@ -194,14 +194,14 @@ fn main() {
             let mut param = from_sensor_dir_clone.lock().unwrap();
             *param = centelyzed_dir;
 
-            //
+            /*
             let _ret = spi0_0.write( &xaccel_write_data );
             //thread::sleep(ten_micros);
             let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
             //thread::sleep(ten_micros);
             let _ret = spi0_0.read( &mut read_data2 ).expect("Failed Spi::read");
             //thread::sleep(ten_micros);
-            let xaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
+            let mut xaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
 
             let _ret = spi0_0.write( &yaccel_write_data );
             //thread::sleep(ten_micros);
@@ -209,7 +209,15 @@ fn main() {
             //thread::sleep(ten_micros);
             let _ret = spi0_0.read( &mut read_data2 ).expect("Failed Spi::read");
             //thread::sleep(ten_micros);
-            let yaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
+            let mut yaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
+
+            // stop drift
+            if xaccel < 20 {
+                xaccel = 0;
+            }
+            if yaccel < 20 {
+                yaccel = 0;
+            }
 
             //need {x,y}accel rotate by dir val ?
 
@@ -223,7 +231,7 @@ fn main() {
             accel_based_machine_pos[1] += yspeed * one_cycle_latency;
 
             println!("accel_based_machine_pos:{:?}", accel_based_machine_pos);
-
+            */
             
             let mut latency = dir_sensor_latency_clone.lock().unwrap();
             *latency = one_cycle_latency;
