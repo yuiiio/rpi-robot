@@ -121,7 +121,7 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.3;
+    const KP: f64 = 0.6;
     const KI: f64 = 0.0;//10.0;
     const KD: f64 = 0.2;
 
@@ -149,11 +149,11 @@ fn main() {
     let _handle2 = thread::spawn(move || {
         //let ten_micros = time::Duration::from_micros(10);
         let mut spi0_0 = Spi::new( Bus::Spi0, SlaveSelect::Ss0, 1_000_000, spi::Mode::Mode0 ).expect( "Failed Spi::new" ); //1MHz
-        let write_data: Vec<u8> = vec![0x20];
+        let dir_write_data: Vec<u8> = vec![0x20];
         let mut read_data1: Vec<u8> = vec![0];
         let mut read_data2: Vec<u8> = vec![0];
         //center dir first pos
-        let _ret = spi0_0.write( &write_data );
+        let _ret = spi0_0.write( &dir_write_data );
         //thread::sleep(ten_micros);
         let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
         //thread::sleep(ten_micros);
@@ -163,6 +163,10 @@ fn main() {
         let center_dir: u16 = ((read_data1[0] as u16) << 8 ) | read_data2[0] as u16;
         let center_dir: u16 = center_dir;
         //println!("center_dir: {}", center_dir);
+        
+        //x,y :accel data
+        let xaccel_write_data: Vec<u8> = vec![0x26];
+        let yaccel_write_data: Vec<u8> = vec![0x28];
 
         let dir_sensor_now = Instant::now();
         let mut last_now_time: f64 = 0.0;
@@ -171,7 +175,7 @@ fn main() {
             let one_cycle_latency: f64 = dir_sensor_now.elapsed().as_secs_f64() - last_now_time;
             last_now_time = dir_sensor_now.elapsed().as_secs_f64();
 
-            let _ret = spi0_0.write( &write_data );
+            let _ret = spi0_0.write( &dir_write_data );
             //thread::sleep(ten_micros);
             let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
             //thread::sleep(ten_micros);
@@ -184,6 +188,25 @@ fn main() {
             //println!("centelyzed_dir: {}", centelyzed_dir);
             let mut param = from_sensor_dir_clone.lock().unwrap();
             *param = centelyzed_dir;
+
+            //
+            let _ret = spi0_0.write( &xaccel_write_data );
+            //thread::sleep(ten_micros);
+            let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
+            //thread::sleep(ten_micros);
+            let _ret = spi0_0.read( &mut read_data2 ).expect("Failed Spi::read");
+            //thread::sleep(ten_micros);
+            let xaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
+
+            let _ret = spi0_0.write( &yaccel_write_data );
+            //thread::sleep(ten_micros);
+            let _ret = spi0_0.read( &mut read_data1 ).expect("Failed Spi::read");
+            //thread::sleep(ten_micros);
+            let _ret = spi0_0.read( &mut read_data2 ).expect("Failed Spi::read");
+            //thread::sleep(ten_micros);
+            let yaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
+
+            println!("xaccel:{}, yaccel:{}", xaccel, yaccel);
             
             let mut latency = dir_sensor_latency_clone.lock().unwrap();
             *latency = one_cycle_latency;
@@ -508,8 +531,8 @@ fn main() {
             let rotate_y: f64 = (val[0] as f64 * sensor_dir_sin) + (val[1] as f64 * sensor_dir_cos);
 
             //scale
-            let rotate_x: f64 = rotate_x * 0.002;
-            let rotate_y: f64 = rotate_y * 0.002;
+            let rotate_x: f64 = rotate_x * 0.0025;
+            let rotate_y: f64 = rotate_y * 0.0025;
 
             accum_val[0] += rotate_x;
             accum_val[1] += rotate_y;
