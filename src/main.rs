@@ -588,7 +588,7 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        const PRE_SAMPLE_SIZE: usize = 5000;
+        const PRE_SAMPLE_SIZE: usize = 1000;
         const MACHINE_SPEED: f64 = 100.0;
 
         let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
@@ -881,7 +881,7 @@ fn main() {
                 let target_dist: f64 = ( avg_pos[0].powi(2) + avg_pos[1].powi(2) ).sqrt();
 
                 direction_sceta_dig = (2.0 * PI) - (avg_pos[0].atan2(avg_pos[1]));
-                power = (target_dist / 20.0).clamp(0.5, 1.0);
+                power = (target_dist / 20.0).clamp(0.8, 1.0);
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
