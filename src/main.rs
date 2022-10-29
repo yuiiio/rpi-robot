@@ -168,6 +168,11 @@ fn main() {
         let xaccel_write_data: Vec<u8> = vec![0x26];
         let yaccel_write_data: Vec<u8> = vec![0x28];
 
+        let mut xspeed: f64 = 0.0;
+        let mut yspeed: f64 = 0.0;
+
+        let mut accel_based_machine_pos:[f64; 2] = [0.0; 2];
+
         let dir_sensor_now = Instant::now();
         let mut last_now_time: f64 = 0.0;
 
@@ -206,7 +211,19 @@ fn main() {
             //thread::sleep(ten_micros);
             let yaccel: i16 =  i16::from_be_bytes([read_data1[0], read_data2[0]]);
 
+            //need {x,y}accel rotate by dir val ?
+
             println!("xaccel:{}, yaccel:{}", xaccel, yaccel);
+
+            xspeed += (xaccel as f64) * one_cycle_latency;
+            yspeed += (yaccel as f64) * one_cycle_latency;
+            println!("xspeed:{}, yspeed:{}", xspeed, yspeed);
+
+            accel_based_machine_pos[0] += xspeed * one_cycle_latency;
+            accel_based_machine_pos[1] += yspeed * one_cycle_latency;
+
+            println!("accel_based_machine_pos:{:?}", accel_based_machine_pos);
+
             
             let mut latency = dir_sensor_latency_clone.lock().unwrap();
             *latency = one_cycle_latency;
