@@ -121,9 +121,9 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.6;
+    const KP: f64 = 0.5;
     const KI: f64 = 0.0;//10.0;
-    const KD: f64 = 0.2;
+    const KD: f64 = 0.1;
 
     /*
     let from_controller_params: Arc<Mutex<(u16, u8)>> = Arc::new(Mutex::new((0, 0)));
@@ -878,8 +878,10 @@ fn main() {
                 avg_pos[0] = avg_pos[0] / (READ_TARGET_SAMPLE_SIZE as f64);
                 avg_pos[1] = avg_pos[1] / (READ_TARGET_SAMPLE_SIZE as f64);
 
+                let target_dist: f64 = ( avg_pos[0].powi(2) + avg_pos[1].powi(2) ).sqrt();
+
                 direction_sceta_dig = (2.0 * PI) - (avg_pos[0].atan2(avg_pos[1]));
-                power = 1.0;// ball_dist / 100.0;
+                power = (target_dist / 20.0).clamp(0.5, 1.0);
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
