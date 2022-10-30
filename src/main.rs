@@ -588,10 +588,10 @@ fn main() {
 
     // calc target_pos
     let _handle6 = thread::spawn(move || {
-        const PRE_SAMPLE_SIZE: usize = 1000;
+        const PRE_SAMPLE_SIZE: usize = 5000;
         const MACHINE_SPEED: f64 = 100.0;
 
-        let mut previous_ball_pos: [[f64; 2]; PRE_SAMPLE_SIZE] = [[0.0; 2]; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
+        let mut previous_ball_pos: [Option<[f64; 2]>; PRE_SAMPLE_SIZE] = [Option::None; PRE_SAMPLE_SIZE]; // need 3 times avg and ball tracking more.
         let mut previous_target_pos: [f64; 2] = [0.0; 2];
 
         let calc_target_now = Instant::now();
@@ -627,7 +627,7 @@ fn main() {
                         {
                             previous_ball_pos[i] = previous_ball_pos[i - 1];
                         }
-                        previous_ball_pos[0] = absolute_ball_pos;
+                        previous_ball_pos[0] = Option::Some(absolute_ball_pos);
 
                         /*
                         let absolute_ball_pos_now: [f64; 2] = [ // three times average
@@ -638,13 +638,21 @@ fn main() {
                         const BALL_POS_SAMPLE_SIZE: usize = 3;
                         let mut absolute_ball_pos_now: [f64; 2] = [0.0; 2];
                         // avg
+                        let mut sample_size: usize = 0;
                         for i in 0..BALL_POS_SAMPLE_SIZE
                         {
-                            absolute_ball_pos_now[0] += previous_ball_pos[i][0];
-                            absolute_ball_pos_now[1] += previous_ball_pos[i][1];
+                            match previous_ball_pos[i] { 
+                                Some(pre_ball_pos) =>  {
+                                    absolute_ball_pos_now[0] += pre_ball_pos[0];
+                                    absolute_ball_pos_now[1] += pre_ball_pos[1];
+                                    sample_size += 1;
+                                },
+                                None => {
+                                },
+                            }
                         }
-                        absolute_ball_pos_now[0] = absolute_ball_pos_now[0] / (BALL_POS_SAMPLE_SIZE as f64);
-                        absolute_ball_pos_now[1] = absolute_ball_pos_now[1] / (BALL_POS_SAMPLE_SIZE as f64);
+                        absolute_ball_pos_now[0] = absolute_ball_pos_now[0] / (sample_size as f64);
+                        absolute_ball_pos_now[1] = absolute_ball_pos_now[1] / (sample_size as f64);
                         //println!("absolute_ball_pos_now: {:?}", absolute_ball_pos_now);
                         
                         // calc relative pos
@@ -655,13 +663,21 @@ fn main() {
                         
                         //uniform linear mortion trajectory
                         let mut b1: [f64; 2] = [0.0; 2];
+                        let mut sample_size: usize = 0;
                         for i in 0..PRE_SAMPLE_SIZE
                         {
-                            b1[0] += previous_ball_pos[i][0];
-                            b1[1] += previous_ball_pos[i][1];
+                            match previous_ball_pos[i] { 
+                                Some(pre_ball_pos) =>  {
+                                    b1[0] += pre_ball_pos[0];
+                                    b1[1] += pre_ball_pos[1];
+                                    sample_size += 1;
+                                },
+                                None => {
+                                },
+                            }
                         }
-                        b1[0] = b1[0] / (PRE_SAMPLE_SIZE as f64); // b1 sample avg
-                        b1[1] = b1[1] / (PRE_SAMPLE_SIZE as f64); // b1 sample avg
+                        b1[0] = b1[0] / (sample_size as f64); // b1 sample avg
+                        b1[1] = b1[1] / (sample_size as f64); // b1 sample avg
                         let b1_sample_point: usize = (PRE_SAMPLE_SIZE / 2) as usize;
                         let b1_to_b2_time: f64 = (b1_sample_point as f64) * one_cycle_latency;
                         let b2: [f64; 2] = absolute_ball_pos_now;//previous_ball_pos[0];
@@ -805,10 +821,27 @@ fn main() {
                         }
                     } else { //ball_pos x, y is not normal
                         //target_pos_relative_option = Option::None;
+
+                        //ball_pos
+                        for i in (1..PRE_SAMPLE_SIZE).rev()
+                        {
+                            previous_ball_pos[i] = previous_ball_pos[i - 1];
+                        }
+                        //previous_ball_pos[0] = previous_ball_pos[0];
+
+                        //target_pos
                         target_pos_relative_option = Option::Some(previous_target_pos);
                     }
                 },
                 None => {
+                    //ball_pos
+                    for i in (1..PRE_SAMPLE_SIZE).rev()
+                    {
+                        previous_ball_pos[i] = previous_ball_pos[i - 1];
+                    }
+                    previous_ball_pos[0] = Option::None;
+                    
+                    //target_pos
                     target_pos_relative_option = Option::None;
                 },
             };
@@ -837,8 +870,8 @@ fn main() {
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
 
-    const READ_TARGET_SAMPLE_SIZE: usize = 20;
-    let mut previous_read_target_pos: [[f64; 2]; READ_TARGET_SAMPLE_SIZE] = [[0.0; 2]; READ_TARGET_SAMPLE_SIZE];
+    const READ_TARGET_SAMPLE_SIZE: usize = 15;
+    let mut previous_read_target_pos: [Option<[f64; 2]>; READ_TARGET_SAMPLE_SIZE] = [Option::None; READ_TARGET_SAMPLE_SIZE];
 
     // start main loop
     'outer: loop {
@@ -866,17 +899,25 @@ fn main() {
                 {
                     previous_read_target_pos[i] = previous_read_target_pos[i - 1];
                 }
-                previous_read_target_pos[0] = target_pos;
+                previous_read_target_pos[0] = Some(target_pos);
 
                 let mut avg_pos: [f64; 2] = [0.0; 2];
                 // avg
+                let mut sample_size: usize = 0;
                 for i in 0..READ_TARGET_SAMPLE_SIZE
                 {
-                    avg_pos[0] += previous_read_target_pos[i][0];
-                    avg_pos[1] += previous_read_target_pos[i][1];
+                    match previous_read_target_pos[i] {
+                        Some(pre_target_pos) =>  {
+                            avg_pos[0] += pre_target_pos[0];
+                            avg_pos[1] += pre_target_pos[1];
+                            sample_size += 1;
+                        },
+                        None=> {
+                        },
+                    }
                 }
-                avg_pos[0] = avg_pos[0] / (READ_TARGET_SAMPLE_SIZE as f64);
-                avg_pos[1] = avg_pos[1] / (READ_TARGET_SAMPLE_SIZE as f64);
+                avg_pos[0] = avg_pos[0] / (sample_size as f64);
+                avg_pos[1] = avg_pos[1] / (sample_size as f64);
 
                 //let target_dist: f64 = ( avg_pos[0].powi(2) + avg_pos[1].powi(2) ).sqrt();
 
@@ -885,6 +926,12 @@ fn main() {
                 power = 1.0;
             },
             None => {
+                // record
+                for i in (1..READ_TARGET_SAMPLE_SIZE).rev()
+                {
+                    previous_read_target_pos[i] = previous_read_target_pos[i - 1];
+                }
+                previous_read_target_pos[0] = Option::None;
                 // when ball_not found, return first pos(0.0, 0.0)
                 /*
                 direction_sceta_dig = (2.0 * PI) - ((-1.0 * machine_pos[0]).atan2((-1.0 * machine_pos[1])));
