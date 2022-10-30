@@ -121,7 +121,7 @@ fn main() {
     let mut error: [f64; 3] = [0.0, 0.0, 0.0];
     let mut integral: f64 = 0.0;
 
-    const KP: f64 = 0.5;
+    const KP: f64 = 0.4;
     const KI: f64 = 0.0;//10.0;
     const KD: f64 = 0.1;
 
@@ -837,7 +837,7 @@ fn main() {
     let now = Instant::now();
     let mut cycle_num: u8 = 0;
 
-    const READ_TARGET_SAMPLE_SIZE: usize = 10;
+    const READ_TARGET_SAMPLE_SIZE: usize = 20;
     let mut previous_read_target_pos: [[f64; 2]; READ_TARGET_SAMPLE_SIZE] = [[0.0; 2]; READ_TARGET_SAMPLE_SIZE];
 
     // start main loop
@@ -878,10 +878,11 @@ fn main() {
                 avg_pos[0] = avg_pos[0] / (READ_TARGET_SAMPLE_SIZE as f64);
                 avg_pos[1] = avg_pos[1] / (READ_TARGET_SAMPLE_SIZE as f64);
 
-                let target_dist: f64 = ( avg_pos[0].powi(2) + avg_pos[1].powi(2) ).sqrt();
+                //let target_dist: f64 = ( avg_pos[0].powi(2) + avg_pos[1].powi(2) ).sqrt();
 
                 direction_sceta_dig = (2.0 * PI) - (avg_pos[0].atan2(avg_pos[1]));
-                power = (target_dist / 20.0).clamp(0.8, 1.0);
+                //power = (target_dist / 20.0).clamp(0.8, 1.0);
+                power = 1.0;
             },
             None => {
                 // when ball_not found, return first pos(0.0, 0.0)
@@ -982,9 +983,9 @@ fn main() {
         motor3 = motor3.clamp(-1.0, 1.0);
 
         //save motor
-        if motor1.abs() < 0.1 && motor2.abs() < 0.1 && motor3.abs() < 0.1 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
+        if motor1.abs() < 0.2 && motor2.abs() < 0.2 && motor3.abs() < 0.2 { motor1 = 0.0; motor2 = 0.0; motor3 = 0.0; }
 
-        let motor: [i8; 3] = [(motor1*40.0) as i8, (motor2*40.0) as i8, (motor3*40.0) as i8]; //should -100 to 100
+        let motor: [i8; 3] = [(motor1*40.0) as i8, (motor2*40.0) as i8, (motor3*-40.0) as i8]; //should -100 to 100
         let mut cmd_str =  String::from("1F000"); //unused motor channel 1
         let cmd = generate_cmd(&motor, &mut cmd_str);
 
